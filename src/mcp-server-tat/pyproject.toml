@@ -1,0 +1,11 @@
+[project]
+name = "mcp-server-tat"
+version = "0.1.4"
+description = "mcp server for Tencent Cloud Automation Tools"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["mcp>=1.0.0","tencentcloud-sdk-python-common","tencentcloud-sdk-python-tat"]
+
+
+[project.scripts]
+mcp-server-tat = "mcp_server_tat:main"

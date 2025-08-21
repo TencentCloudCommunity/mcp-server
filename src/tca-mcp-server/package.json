@@ -1,0 +1,27 @@
+{
+  "name": "tca-mcp-server",
+  "version": "1.1.0",
+  "description": "",
+  "main": "./dist/stdio.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node dist/stdio.js"
+  },
+  "bin": {
+    "tca-mcp-stdio": "dist/stdio.js"
+  },
+  "type": "module",
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/ini": "^4.1.1",
+    "@types/node": "^24.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "ini": "^5.0.0"
+  }
+}

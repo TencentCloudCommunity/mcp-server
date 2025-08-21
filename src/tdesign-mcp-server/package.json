@@ -1,0 +1,27 @@
+{
+  "name": "tdesign-mcp-server-mono",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build:docs": "pnpm -C packages/scripts build:docs",
+    "build:mcp": "pnpm -C packages/server build:mcp",
+    "build-watch:mcp": "pnpm -C packages/server build-watch:mcp"
+  },
+  "dependencies": {
+    "@tdesign-mcp-server/common": "workspace:*"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.3",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-replace": "^6.0.2",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@types/node": "^22.14.1",
+    "dotenv": "^17.2.1",
+    "prettier": "^3.5.3",
+    "rollup": "^4.40.1",
+    "rollup-plugin-typescript2": "^0.36.0",
+    "typescript": "^5.8.3"
+  }
+}

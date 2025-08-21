@@ -1,0 +1,21 @@
+[project]
+name = "mcp-server-as"
+version = "0.1.1"
+description = "MCP Server for Tencent Cloud Autoscaling"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.0.0",
+    "tencentcloud-sdk-python-autoscaling>=3.0.1361",
+    "tencentcloud-sdk-python-common>=3.0.1361"
+]
+
+[project.scripts]
+mcp-server-as = "mcp_server_as:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_server_as"]

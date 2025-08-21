@@ -1,0 +1,8 @@
+**/.git
+**/.vscode
+**/dist
+**/node_modules
+**/*.md
+**/*.json
+**/*.d.ts
+**/.env*

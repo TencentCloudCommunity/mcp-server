@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp-server-tapd"
+version = "8.0.60"
+description = "TAPD MCP Server"
+authors = [{ name = "ryanjhzheng", email = "zhengjianhong95@gmail.com" }]
+readme = "README.md"
+requires-python = ">=3.13"
+keywords = ["mcp", "tapd"]
+dependencies = [
+  "httpx",
+  'requests',
+  'markdown',
+  "mcp[cli]>=1.0.0",
+]
+
+[project.scripts]
+mcp-server-tapd = "mcp_server_tapd.server:main"

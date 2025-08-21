@@ -1,0 +1,23 @@
+<template>
+  <t-space direction="vertical">
+    <t-date-picker v-model="date2" @change="handleChange" />
+    <t-date-picker
+      v-model="date"
+      placeholder="可清除、可输入的日期选择器"
+      clearable
+      allow-input
+      @change="handleChange"
+    />
+  </t-space>
+</template>
+
+<script setup>
+import { ref } from 'vue';
+
+const date = ref('');
+const date2 = ref('');
+
+function handleChange(value, context) {
+
+}
+</script>

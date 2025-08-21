@@ -1,0 +1,150 @@
+main:
+  pull_request:
+    - docker:
+        image: docker.cnb.cool/examples/workspace-images/workspace-node:lts
+      stages:
+        - name: npm install
+          script: npm install
+        - name: build schema
+          script: npx openapi-typescript@5.4.2 https://api.cnb.cool/swagger.json -o src/schema.d.ts
+        - name: eslint
+          script: npm run lint
+        - name: format check
+          script: npm run format:check
+        - name: bvt-test
+          script: npm run build
+        - name: notify
+          image: tencentcom/wecom-message
+          imports: https://cnb.cool/cnb/secrets/-/blob/main/envs/wework-robots.yml
+          settings:
+            robot: $CNB_MCP_ROBOT
+            msgType: markdown
+            content: |
+              有人提PR啦：
+              ${CNB_PULL_REQUEST_TITLE}
+              [${CNB_EVENT_URL}](${CNB_EVENT_URL})
+
+              ${CURR_REVIEWER_FOR_AT}
+              from ${CNB_PULL_REQUEST_PROPOSER}
+
+  pull_request.mergeable:
+    - stages:
+        - name: automerge
+          type: git:auto-merge
+          options:
+            mergeType: rebase
+        - name: notify
+          image: tencentcom/wecom-message
+          imports: https://cnb.cool/cnb/secrets/-/blob/main/envs/wework-robots.yml
+          settings:
+            robot: $CNB_MCP_ROBOT
+            msgType: markdown
+            content: |
+              CR 通过后自动合并: <@${CNB_PULL_REQUEST_PROPOSER}>
+
+              ${CNB_PULL_REQUEST_TITLE}
+              [${CNB_EVENT_URL}](${CNB_EVENT_URL})
+
+              ${REVIEWED_BY}
+
+$:
+  issue.open:
+    - stages:
+        - name: issue-notice
+          image: tencentcom/wecom-message
+          imports: https://cnb.cool/cnb/secrets/-/blob/main/envs/wework-robots.yml
+          settings:
+            robot: $CNB_MCP_ROBOT
+            msgType: markdown
+            content: |
+              > **有人提issue啦**
+              > **标  题:** $CNB_ISSUE_TITLE
+              > **发起人:** $CNB_ISSUE_OWNER
+              > **查看:** [$CNB_EVENT_URL]($CNB_EVENT_URL)
+  issue.reopen:
+    - stages:
+        - name: issue-notice
+          image: tencentcom/wecom-message
+          imports: https://cnb.cool/cnb/secrets/-/blob/main/envs/wework-robots.yml
+          settings:
+            robot: $CNB_MCP_ROBOT
+            content: |
+              > **$CNB_BUILD_USER重新打开了一个issue**
+              > **标  题:** $CNB_ISSUE_TITLE
+              > **发起人:** $CNB_ISSUE_OWNER
+              > **查  看:** [$CNB_EVENT_URL]($CNB_EVENT_URL)
+  # vscode 事件：专供页面中启动远程开发用
+  vscode:
+    - docker:
+        # 自定义镜像作为开发环境
+        image: docker.cnb.cool/examples/workspace-images/workspace-node:lts
+      services:
+        - vscode
+        - docker
+      stages:
+        - name: npm install
+          script: npm install
+        - name: build schema
+          script: npx openapi-typescript@5.4.2 https://api.cnb.cool/swagger.json -o src/schema.d.ts
+        - name: create .env
+          script: cp .env.example .env
+  tag_push:
+    - docker:
+        image: docker.cnb.cool/examples/workspace-images/workspace-node:lts
+      services:
+        - docker
+      stages:
+        - name: npm version
+          script: |
+            npm version $CNB_BRANCH -m "ci: update version to %s [ci skip]" --allow-same-version true
+            git tag -d $CNB_BRANCH
+            git push origin HEAD:main -o ci.skip
+        - name: set version env
+          script: jq -r .version package.json | tr -d '\n'
+          exports:
+            info: NPM_VERSION
+        - name: npm install
+          script: npm install
+        - name: build schema
+          script: npx openapi-typescript@5.4.2 https://api.cnb.cool/swagger.json -o src/schema.d.ts
+        - name: npm run build
+          script: npm run build
+        - name: npm publish
+          image: tencentcom/npm
+          imports: https://cnb.cool/cnb/secrets/-/blob/main/envs/npm_cnbcool.yml
+          settings:
+            token: $NPM_TOKEN
+            folder: ./
+            fail_on_version_conflict: true
+        - name: generate changelog
+          image: cnbcool/changelog
+          settings:
+            dryRun: true
+            linkReferences: true
+            showIssue: true
+            showCommitTime: false
+            showPr: true
+          exports:
+            latestChangeLog: LATEST_CHANGE_LOG
+        - name: upload release
+          type: git:release
+          options:
+            description: ${LATEST_CHANGE_LOG}
+        - name: notify
+          image: tencentcom/wecom-message
+          imports: https://cnb.cool/cnb/secrets/-/blob/main/envs/wework-robots.yml
+          settings:
+            robot: $CNB_MCP_ROBOT
+            msgType: markdown
+            content: |
+              # version: ${NPM_VERSION} 已生成并发布到NPM仓库
+
+              commit：[${CNB_COMMIT_SHORT}](${CNB_EVENT_URL})
+
+              npm: [${NPM_VERSION}](https://www.npmjs.com/package/@cnbcool/mcp-server/v/${NPM_VERSION})
+
+              ## 本次更新内容：
+
+              ${LATEST_CHANGE_LOG}
+            lastMsg: |
+              [查看更多](${CNB_EVENT_URL})：${CNB_EVENT_URL}

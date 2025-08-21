@@ -1,0 +1,4 @@
+当前项目为一个MCP Server的源码，作用是对cnb.cool的OPENAPI进行封装，转化为MCP Server的Tools。现在需要你：
+
+1. 阅读src目录下的代码。现有的代码已经实现了部分功能，你需要阅读代码，了解其实现原理，然后补充剩余的功能。
+2. 阅读swagger/Issues.json，了解cnb.cool的OPENAPI的接口定义，然后补充剩余的功能。
