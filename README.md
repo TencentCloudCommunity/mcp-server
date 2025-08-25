@@ -62,6 +62,12 @@ MCP Server List Sync With **[TencentCloud Developer MCP Market](https://cloud.te
 
 Get started quickly with one-click installation buttons for popular MCP clients. Click the buttons below to install servers directly in CodeBuddy, Cursor or VS Code:
 
+1.  If you are using **Cursor** for local deployment, click ![Install](https://img.shields.io/badge/Install-Cursor-blue?style=flat-square&logo=cursor) in the list for quick installation.
+
+2.  If you are using **VS Code** for local deployment, click ![Install VS Code](https://img.shields.io/badge/Install-VS_Code-FF9900?style=flat-square&logo=visualstudiocode&logoColor=white) in the list for quick installation.
+
+3.  If you are using **Hosted** Deployment mode, click ![hosted](https://cloud.tencent.com/favicon.ico) in the list for quick installation.
+
 | Server Name | Description | Install | Hosted |
 |-------------|-------------|---------|:-------:|
 | [EdgeOne Pages MCP](src/edgeone-pages-mcp) | The MCP server based on EdgeOne Pages supports code deployment as an online page. | [![Install](https://img.shields.io/badge/Install-Cursor-blue?style=flat-square&logo=cursor)](https://cursor.com/en/install-mcp?name=edgeone-pages-mcp-server&config=eyJjb21tYW5kIjoibnB4IGVkZ2VvbmUtcGFnZXMtbWNwIiwiZGlzYWJsZWQiOmZhbHNlLCJhdXRvQXBwcm92ZSI6W10sImVudiI6eyJFREdFT05FX1BBR0VTX0FQSV9UT0tFTiI6IiIsIkVER0VPTkVfUEFHRVNfUFJPSkVDVF9OQU1FIjoiIn19) <br/> [![Install VS Code](https://img.shields.io/badge/Install-VS_Code-FF9900?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=edgeone-pages-mcp-server&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22edgeone-pages-mcp%22%5D%2C%22env%22%3A%7B%22EDGEONE_PAGES_API_TOKEN%22%3A%22%22%2C%22EDGEONE_PAGES_PROJECT_NAME%22%3A%22%22%7D%7D) | [![edgeone-pages-mcp-server](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/10011) |
@@ -125,7 +131,7 @@ TencentCloud MCP servers can be run either locally on your development machine o
             "mcpServers": {
                 "cos-mcp": {
                     "type": "sse",
-                    "url": "https://mcp-api.tencent-cloud.com/sse/77xxxxxxxxxxxx" // Replace with your own SSE URL token generated from cloud hosting
+                    "url": "https://mcp-api.tencent-cloud.com/sse/<your-token>" // Replace with your own SSE URL token generated from cloud hosting
                 }
             }
         }
