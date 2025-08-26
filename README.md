@@ -146,7 +146,7 @@ TencentCloud MCP servers can be run either locally on your development machine o
         CodeBuddy summarizes the content
         ![alt text](./images/hosted-start/10-codebuddy-use.png)
 5.  More Information
-    1.  Other cloud-hosted MCP services in the **[Tencent Cloud Developer Community MCP Marketplace](https://cloud.tencent.com/developer/mcp)** can be used following these same steps.
+    1.  Other cloud-hosted MCP services in the **[Tencent Cloud Developer Community MCP Marketplace](https://mc.tencent.com/IZhJGPPS)** can be used following these same steps.
     
         ![alt text](./images/hosted-start/11-hosted-list.png)
 ### Steps for Local Installation of MCP
