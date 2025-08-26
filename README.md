@@ -58,7 +58,7 @@ MCP servers enhance the capabilities of foundation models (FMs) in several key w
 
 ## Available MCP Servers: Quick Installation
 
-MCP Server List Sync With **[TencentCloud Developer MCP Market](https://cloud.tencent.com/developer/mcp)**.
+MCP Server List Sync With **[TencentCloud Developer MCP Market](https://mc.tencent.com/IZhJGPPS)**.
 
 Get started quickly with one-click installation buttons for popular MCP clients. Click the buttons below to install servers directly in CodeBuddy, Cursor or VS Code:
 
@@ -103,7 +103,7 @@ TencentCloud MCP servers can be run either locally on your development machine o
 ## Remote and Local Installation & Setup
 ### Steps for Using Remote Hosted MCP
 1.  Cloud Configuration
-    1.  Visit the MCP details page in the **[Tencent Cloud Developer Community MCP Marketplace](https://cloud.tencent.com/developer/mcp)**, using **[Tencent Cloud COS MCP Server](https://cloud.tencent.com/developer/mcp/server/11472)** as an example
+    1.  Visit the MCP details page in the **[Tencent Cloud Developer Community MCP Marketplace](https://mc.tencent.com/IZhJGPPS)**, using **[Tencent Cloud COS MCP Server](https://cloud.tencent.com/developer/mcp/server/11472)** as an example
     2.  Click the **Connect Server** button on the details page
         ![alt text](./images/hosted-start/1-click-connect-server.png)
     3.  Agree to the **Tencent Cloud Developer MCP Marketplace Software License and Service Agreement** and continue
