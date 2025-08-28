@@ -424,3 +424,13 @@ TencentCloud MCP 服务可以在您的开发机器本地运行，也可以在云
 }
 ```
 </details>
+
+##  更多资讯
+1.  [官方精选MCP提效实践教程](https://cloud.tencent.com/product/mcp)
+2.  扫码进入 MCP 微信交流群
+    
+    ![MCP 微信交流群群](./images/wechat-group-qrcode.png)
+
+    群满或二维码失效请联系:
+
+    ![MCP 微信交流群群](./images/wechat-manager.png)
