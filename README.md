@@ -417,7 +417,7 @@ Configure MCP servers in VS Code settings or in `.vscode/mcp.json` (see [VS Code
 
 
 ##  More Information
-1.  [Official Selection: MCP Efficiency Practice Tutorial](https://cloud.tencent.com/developer/mcp)
+1.  [Official Selection: MCP Efficiency Practice Tutorial](https://cloud.tencent.com/developer/special/mcp)
 2.  Scan QrCode join the WeChat Group of MCP
 
     ![MCP WeChat Group](./images/wechat-group-qrcode.png)
