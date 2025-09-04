@@ -99,9 +99,9 @@ MCP Server 列表 与 **[腾讯云云开发者社区 MCP 广场](https://cloud.t
 | [腾讯云自动化助手TAT MCP Server](src/mcp-server-tat) | 腾讯云 TAT（TencentCloud Automation Tools）MCP Server，<br>用于在支持 MCP 的客户端中直接在腾讯云实例上执行命令。| [![Install](https://img.shields.io/badge/Install-Cursor-blue?style=flat-square&logo=cursor)](https://cursor.com/en/install-mcp?name=tencent-tat&config=eyJjb21tYW5kIjoidXZ4IG1jcC1zZXJ2ZXItdGF0IiwiZGlzYWJsZWQiOmZhbHNlLCJhdXRvQXBwcm92ZSI6W10sImVudiI6eyJURU5DRU5UQ0xPVURfU0VDUkVUX0lEIjoiWU9VUl9TRUNSRVRfSURfSEVSRSIsIlRFTkNFTlRDTE9VRF9TRUNSRVRfS0VZIjoiWU9VUl9TRUNSRVRfS0VZX0hFUkUiLCJURU5DRU5UQ0xPVURfUkVHSU9OIjoiWU9VUl9SRUdJT05fSEVSRSJ9fQ%3D%3D) <br/> [![Install VS Code](https://img.shields.io/badge/Install-VS_Code-FF9900?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=tencent-tat&config=%7B%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22mcp-server-tat%22%5D%2C%22env%22%3A%7B%22TENCENTCLOUD_SECRET_ID%22%3A%22YOUR_SECRET_ID_HERE%22%2C%22TENCENTCLOUD_SECRET_KEY%22%3A%22YOUR_SECRET_KEY_HERE%22%2C%22TENCENTCLOUD_REGION%22%3A%22YOUR_REGION_HERE%22%7D%7D) |  [![tencent-tat](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11729) |
 | [腾讯云弹性伸缩AS MCP Server](src/mcp-server-as) | 腾讯云 AS MCP 服务器是一个用于管理腾讯云自动伸缩组及相关资源的工具。<br>其主要功能包括自动伸缩组的全生命周期管理（创建、修改、启用和禁用）、<br>伸缩策略的执行（支持手动扩容和缩容）以及容量管理（修改期望容量）。| [![Install](https://img.shields.io/badge/Install-Cursor-blue?style=flat-square&logo=cursor)](https://cursor.com/en/install-mcp?name=tencent-as&config=eyJjb21tYW5kIjoidXZ4IG1jcC1zZXJ2ZXItYXMiLCJkaXNhYmxlZCI6ZmFsc2UsImF1dG9BcHByb3ZlIjpbXSwiZW52Ijp7IlRFTkNFTlRDTE9VRF9TRUNSRVRfSUQiOiJZT1VSX1NFQ1JFVF9JRF9IRVJFIiwiVEVOQ0VOVENMT1VEX1NFQ1JFVF9LRVkiOiJZT1VSX1NFQ1JFVF9LRVlfSEVSRSIsIlRFTkNFTlRDTE9VRF9SRUdJT04iOiJZT1VSX1JFR0lPTl9IRVJFIn19) <br/> [![Install VS Code](https://img.shields.io/badge/Install-VS_Code-FF9900?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=tencent-as&config=%7B%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22mcp-server-as%22%5D%2C%22env%22%3A%7B%22TENCENTCLOUD_SECRET_ID%22%3A%22YOUR_SECRET_ID_HERE%22%2C%22TENCENTCLOUD_SECRET_KEY%22%3A%22YOUR_SECRET_KEY_HERE%22%2C%22TENCENTCLOUD_REGION%22%3A%22YOUR_REGION_HERE%22%7D%7D) |  [![tencent-as](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11730) |
 | 腾讯云日志服务CLS | 通过 MCP Server 查询日志服务 CLS 中存储的日志数据，<br>以实现大模型平台/工具与日志数据的结合。<br>例如使用自然语言查询日志，<br>降低日志查询复杂度；<br>整合至运维排障流程中，<br>智能分析系统异常。| 不支持 |  [![tencent-as](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11710) |
-| 云数据库 TencentDB for MySQL MCP | 腾讯云数据库 MySQL（TencentDB for MySQL）<br>为用户提供安全可靠、性能卓越、易于维护<br>的企业级云数据库服务。| 不支持 |  [![tencent-mysql](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11744) |
-| TDSQL-C MySQL MCP | TDSQL-C MySQL 版（TDSQL-C for MySQL）<br>是腾讯云自研的新一代云原生关系型数据库。| 不支持 |  [![tencent-tdsql](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11745) |
-| 内容分发网络 CDN MCP | 内容分发网络（Content Delivery Network，CDN）<br>通过将站点内容发布至遍布全球的海量加速节点，<br>使其用户可就近获取所需内容，<br>避免因网络拥堵带来的网络不稳定、访问延迟高等问题。| 不支持 |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11748) |
+| [云数据库 TencentDB for MySQL MCP](src/cdb) | 腾讯云数据库 MySQL（TencentDB for MySQL）<br>为用户提供安全可靠、性能卓越、易于维护<br>的企业级云数据库服务。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-mysql](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11744) |
+| [TDSQL-C MySQL MCP](src/cynosdb) | TDSQL-C MySQL 版（TDSQL-C for MySQL）<br>是腾讯云自研的新一代云原生关系型数据库。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-tdsql](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11745) |
+| [内容分发网络 CDN MCP](src/cdn) | 内容分发网络（Content Delivery Network，CDN）<br>通过将站点内容发布至遍布全球的海量加速节点，<br>使其用户可就近获取所需内容，<br>避免因网络拥堵带来的网络不稳定、访问延迟高等问题。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11748) |
 
 ### IaaS
 |  服务名称 | 描述 | 本地部署 | 云部署 |
@@ -184,7 +184,7 @@ TencentCloud MCP 服务可以在您的开发机器本地运行，也可以在云
 </details>
 
 ### 本地 MCP 服务安装与设置
-通常对于 go 源码类的 MCP，您可以:
+####  通常对于 go 源码类的 MCP，您可以:
 <details>
 <summary>点击查看 go 源码类的 MCP 安装与设置</summary>
 
@@ -196,7 +196,7 @@ TencentCloud MCP 服务可以在您的开发机器本地运行，也可以在云
     ![配置](./images/local-start/01-local-go-config.png)
 </details>
 
-通常对于 command 为 uvx 的MCP，您可以：
+####  通常对于 command 为 uvx 的MCP，您可以：
 
 <details>
 <summary>点击查看 command 为 uvx 的 MCP 安装与设置</summary>
@@ -265,7 +265,7 @@ TencentCloud MCP 服务可以在您的开发机器本地运行，也可以在云
     ```
 </details>
 
-对于 command 为 npx 的MCP，您可以：
+####  对于 command 为 npx 的MCP，您可以：
 
 <details>
 <summary>点击查看 command 为 npx 的 MCP 安装与设置</summary>
