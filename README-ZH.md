@@ -131,6 +131,9 @@ TencentCloud MCP 服务可以在您的开发机器本地运行，也可以在云
 ## 远程和本地 MCP 服务安装与设置
 每个服务都有特定的安装说明，支持 CodeBuddy、 Cursor 和 VSCode 的一键安装。
 ### 远程 MCP 服务开通与配置
+<details>
+<summary>点击查看 远程 MCP 服务开通与配置</summary>
+
 1.  云上配置
     1.  访问 **[腾讯云云开发者社区 MCP 广场](https://cloud.tencent.com/developer/mcp)** 中的 MCP详情页，以 **[腾讯云 COS MCP Server](https://cloud.tencent.com/developer/mcp/server/11472)** 为例
     2.  点击详情页的 **连接Server** 按钮
@@ -178,8 +181,25 @@ TencentCloud MCP 服务可以在您的开发机器本地运行，也可以在云
     1.  **[腾讯云云开发者社区 MCP 广场](https://cloud.tencent.com/developer/mcp)** 上的其他云托管模式 MCP 均可参考该使用步骤进行操作。
     
         ![alt text](./images/hosted-start/11-hosted-list.png)
+</details>
+
 ### 本地 MCP 服务安装与设置
+通常对于 go 源码类的 MCP，您可以:
+<details>
+<summary>点击查看 go 源码类的 MCP 安装与设置</summary>
+
+1.  可以从 [golang](https://golang.org/dl/) 安装 `go`， 版本 >= 1.24.1，如已安装跳过该步骤。
+2.  以 **域名MCP** 为例，终端输入 `cd src/domain` 进入 源码目录
+3.  执行 `go build` 进行源码编译, 得到可执行文件 **domain_server**
+4.  执行 `./domain_server` 运行 MCP 服务
+5.  拷贝 **步骤4** 输出的配置信息，在 IDE 中进行配置
+    ![配置](./images/local-start/01-local-go-config.png)
+</details>
+
 通常对于 command 为 uvx 的MCP，您可以：
+
+<details>
+<summary>点击查看 command 为 uvx 的 MCP 安装与设置</summary>
 
 1. 可以从 [Astral](https://docs.astral.sh/uv/getting-started/installation/) 安装依赖 `uvx`
 
@@ -243,7 +263,12 @@ TencentCloud MCP 服务可以在您的开发机器本地运行，也可以在云
       }
     }
     ```
+</details>
+
 对于 command 为 npx 的MCP，您可以：
+
+<details>
+<summary>点击查看 command 为 npx 的 MCP 安装与设置</summary>
 
 1.  可以从 [Node.js](https://nodejs.org) 下载安装 node，安装完 node 同时会安装好依赖 npx
     
@@ -326,6 +351,7 @@ TencentCloud MCP 服务可以在您的开发机器本地运行，也可以在云
       }
     }
     ```
+</details>
 
 请参阅各个服务器的 README 文件了解特定要求和配置选项。
 
@@ -333,7 +359,7 @@ TencentCloud MCP 服务可以在您的开发机器本地运行，也可以在云
 ### CodeBuddy 入门
 
 <details>
-<summary>CodeBuddy 入门</summary>
+<summary>点击查看 CodeBuddy 入门</summary>
 
 1. 按照上面**安装与设置**部分的步骤，从 [Astral](https://docs.astral.sh/uv/getting-started/installation/) 安装 `uv`
 2. 按照上面**安装与设置**部分的步骤，从 [Node.js](https://nodejs.org) 安装 node。
@@ -359,7 +385,7 @@ TencentCloud MCP 服务可以在您的开发机器本地运行，也可以在云
 ### Cursor 入门
 
 <details>
-<summary>Cursor 入门</summary>
+<summary>点击查看 Cursor 入门</summary>
 
 1. 按照上面**安装与设置**部分的步骤，从 [Astral](https://docs.astral.sh/uv/getting-started/installation/) 安装 `uv`
 2. 按照上面**安装与设置**部分的步骤，从 [Node.js](https://nodejs.org) 安装 node。
@@ -395,7 +421,7 @@ TencentCloud MCP 服务可以在您的开发机器本地运行，也可以在云
 ### Windsurf 入门
 
 <details>
-<summary>Windsurf 入门</summary>
+<summary>点击查看 Windsurf 入门</summary>
 
 1. 按照上面**安装与设置**部分的步骤，从 [Astral](https://docs.astral.sh/uv/getting-started/installation/) 安装 `uv`
 2. 按照上面**安装与设置**部分的步骤，从 [Node.js](https://nodejs.org) 安装 node。
@@ -430,7 +456,7 @@ TencentCloud MCP 服务可以在您的开发机器本地运行，也可以在云
 ### VS Code 入门
 
 <details>
-<summary>在 VS Code 中安装</summary>
+<summary>点击查看 在 VS Code 中安装</summary>
 
 1. 按照上面**安装与设置**部分的步骤，从 [Astral](https://docs.astral.sh/uv/getting-started/installation/) 安装 `uv`
 2. 按照上面**安装与设置**部分的步骤，从 [Node.js](https://nodejs.org) 安装 node。

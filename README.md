@@ -129,6 +129,9 @@ TencentCloud MCP servers can be run either locally on your development machine o
 
 ## Remote and Local Installation & Setup
 ### Steps for Using Remote Hosted MCP
+<details>
+<summary>Steps for Using Remote Hosted MCP</summary>
+
 1.  Cloud Configuration
     1.  Visit the MCP details page in the **[Tencent Cloud Developer Community MCP Marketplace](https://mc.tencent.com/IZhJGPPS)**, using **[Tencent Cloud COS MCP Server](https://cloud.tencent.com/developer/mcp/server/11472)** as an example
     2.  Click the **Connect Server** button on the details page
@@ -176,12 +179,31 @@ TencentCloud MCP servers can be run either locally on your development machine o
     1.  Other cloud-hosted MCP services in the **[Tencent Cloud Developer Community MCP Marketplace](https://mc.tencent.com/IZhJGPPS)** can be used following these same steps.
     
         ![alt text](./images/hosted-start/11-hosted-list.png)
+</details>
+
 ### Steps for Local Installation of MCP
+####  MCP servers with go source, you can typically:
+<details>
+<summary>MCP servers with go source's Install And Configure</summary>
+
+1.  Install go from [golang](https://golang.org/dl/), version >= 1.24.1. Skip this step if already installed.
+2.  Using **Domain MCP** as an example, enter `cd src/domain` in the terminal to navigate to the source directory.
+3.  Run `go build` to compile the source code, which will generate the executable file **domain_server**.
+4.  Execute `./domain_server` to start the MCP service.
+5.  Copy the configuration information output from **Step 4** and configure it in your IDE. Configuration
+    ![configuration](./images/local-start/01-local-go-config.png)
+
+</details>
+
+####  MCP servers with uvx command, you can typically:
+<details>
+<summary>MCP servers with uvx command Install And Configure</summary>
+
 1.  Install `uvx` from [Astral](https://docs.astral.sh/uv/getting-started/installation/)
     
-    Add the server to your MCP client configuration
+2.  Add the server to your MCP client configuration
 
-    Use **tencent-cvm** as example, add **tencent-cvm** to your MCP client configuration
+3.  Use **tencent-cvm** as example, add **tencent-cvm** to your MCP client configuration
 
     ![CodeBuddy Settings](./images/hosted-start/13-local-cvm.png)
 
@@ -238,11 +260,17 @@ TencentCloud MCP servers can be run either locally on your development machine o
       }
     }
     ```
-2.  Install `npm` from [Node.js](https://nodejs.org)
-    
-    Add the server to your MCP client configuration
+</details>
 
-    Use **cos-mcp** as example, add **cos-mcp** to your MCP client configuration
+####  MCP servers with npx command, you can typically:
+<details>
+<summary>MCP servers with npx command Install And Configure</summary>
+
+1.  Install `npm` from [Node.js](https://nodejs.org)
+    
+2.  Add the server to your MCP client configuration
+
+3.  Use **cos-mcp** as example, add **cos-mcp** to your MCP client configuration
 
     ![CodeBuddy Settings](./images/hosted-start/12-local-cos.png)
 
@@ -317,6 +345,8 @@ TencentCloud MCP servers can be run either locally on your development machine o
       }
     }
     ```
+</details>
+
 ##  Installation and Setup
 ### Getting Started with CodeBuddy
 
