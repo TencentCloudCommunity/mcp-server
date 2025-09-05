@@ -91,6 +91,7 @@ Get started quickly with one-click installation buttons for popular MCP clients.
 | Server Name | Description | Install | Hosted |
 |-------------|-------------|---------|:-------:|
 | DNSpod MCP Server | The Tencent Cloud DNS MCP server is implemented to manage authoritative DNS domains and obtain DNS resolution statistics. | No Support |  [![tencent-dnspod](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11743) |
+| [Domain MCP](src/domain) | The method of acquiring a domain name is through paid acquisition of the usage rights for one or multiple years, which we refer to as domain registration.| [Install Go Source](#mcp-servers-with-go-source-you-can-typically) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11749) |
 
 ### PaaS
 | Server Name | Description | Install | Hosted |

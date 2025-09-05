@@ -91,6 +91,7 @@ MCP Server 列表 与 **[腾讯云云开发者社区 MCP 广场](https://cloud.t
 |  服务名称 | 描述 | 本地部署 | 云部署 |
 |-------------|----------|---------|:------:|
 | DNSPod | 基于DNSPod解析的MCP服务器，支持快速添加域名、查看解析记录、查看解析用量。| 不支持 |  [![tencent-dnspod](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11743) |
+| [域名注册 MCP](src/domain) | 获得域名的方式是通过付费<br>获得域名一年或多年内的使用权，<br>我们称之为域名注册。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11749) |
 
 ### PaaS
 |  服务名称 | 描述 | 本地部署 | 云部署 |
