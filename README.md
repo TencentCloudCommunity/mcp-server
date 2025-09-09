@@ -92,6 +92,7 @@ Get started quickly with one-click installation buttons for popular MCP clients.
 |-------------|-------------|---------|:-------:|
 | DNSpod MCP Server | The Tencent Cloud DNS MCP server is implemented to manage authoritative DNS domains and obtain DNS resolution statistics. | No Support |  [![tencent-dnspod](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11743) |
 | [Domain MCP](src/domain) | The method of acquiring a domain name is through paid acquisition of the usage rights for one or multiple years, which we refer to as domain registration.| [Install Go Source](#mcp-servers-with-go-source-you-can-typically) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11749) |
+| Private DNS MCP | The MCP server, leveraging Private DNS, supports rapid creation of private zones and viewing of private zone resolution details.| No Support |  [![tencent-dnspod](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11756) |
 
 ### PaaS
 | Server Name | Description | Install | Hosted |
@@ -105,6 +106,8 @@ Get started quickly with one-click installation buttons for popular MCP clients.
 | [CDN MCP](src/cdn) | Content Delivery Network (CDN) distributes website content to a vast network of acceleration nodes deployed globally, enabling users to access required content from nearby locations and avoiding network instability and high access latency caused by network congestion.| [Install Go Source](#mcp-servers-with-go-source-you-can-typically) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11748) |
 | [CLB MCP](src/clb) | Cloud Load Balancer (CLB) provides secure and efficient Layer 4 and Layer 7 traffic distribution services. Traffic routed through CLB is automatically distributed across multiple backend servers, thereby scaling system service capacity and eliminating single points of failure.| [Install Go Source](#mcp-servers-with-go-source-you-can-typically) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11747) |
 | [SSL MCP](src/ssl) | Tencent Cloud SSL Certificates provides comprehensive services for SSL certificate application, management, and deployment, offering you a one-stop HTTPS solution.| [Install Go Source](#mcp-servers-with-go-source-you-can-typically) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11751) |
+| [Live MCP](src/live) | Cloud Streaming Services (CSS) provides you with lightning-fast, reliable, and enterprise-grade cloud live streaming solutions.| [Install Go Source](#mcp-servers-with-go-source-you-can-typically) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11752) |
+| [VOD MCP](src/vod) | Providing end-to-end, premium media services for audio, video, and images—from content creation and upload to storage, transcoding, AI-powered processing, accelerated distribution, playback, and copyright protection.| [Install Go Source](#mcp-servers-with-go-source-you-can-typically) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11753) |
 
 ### IaaS
 | Server Name | Description | Install | Hosted |

@@ -92,6 +92,7 @@ MCP Server 列表 与 **[腾讯云云开发者社区 MCP 广场](https://cloud.t
 |-------------|----------|---------|:------:|
 | DNSPod | 基于DNSPod解析的MCP服务器，支持快速添加域名、查看解析记录、查看解析用量。| 不支持 |  [![tencent-dnspod](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11743) |
 | [域名注册 MCP](src/domain) | 获得域名的方式是通过付费<br>获得域名一年或多年内的使用权，<br>我们称之为域名注册。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11749) |
+| Private DNS MCP | 基于私有域解析 Private DNS 的 MCP 服务器，支持快速创建私有域、查看私有域解析详情等。| 不支持 |  [![tencent-dnspod](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11756) |
 
 ### PaaS
 |  服务名称 | 描述 | 本地部署 | 云部署 |
@@ -105,6 +106,8 @@ MCP Server 列表 与 **[腾讯云云开发者社区 MCP 广场](https://cloud.t
 | [内容分发网络 CDN MCP](src/cdn) | 内容分发网络（Content Delivery Network，CDN）<br>通过将站点内容发布至遍布全球的海量加速节点，<br>使其用户可就近获取所需内容，<br>避免因网络拥堵带来的网络不稳定、访问延迟高等问题。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11748) |
 | [负载均衡 MCP](src/clb) | 负载均衡（Cloud Load Balancer，CLB）<br>提供安全快捷的四七层流量分发服务，<br>访问流量经由 CLB 可以自动分配到多台后端服务器上，<br>扩展系统的服务能力并消除单点故障。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11747) |
 | [SSL 证书 MCP](src/ssl) | 腾讯云 SSL 证书（SSL Certificates）<br>为您提供 SSL 证书的申请、管理、部署等服务，<br>为您提供一站式 HTTPS 解决方案。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11751) |
+| [Live 云直播 CSS MCP](src/live) | 云直播（Cloud Streaming Services，CSS）<br>为您提供极速、稳定、专业的云端直播处理服务。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11752) |
+| [云点播 VOD MCP](src/vod) | 面向音视频、图片等媒体，<br>提供制作上传、存储、转码、媒体处理、<br>媒体 AI、加速分发播放、<br>版权保护等一体化的高品质媒体服务。 | [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11752) |
 
 ### IaaS
 |  服务名称 | 描述 | 本地部署 | 云部署 |
