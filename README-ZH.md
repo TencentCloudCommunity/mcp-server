@@ -108,6 +108,8 @@ MCP Server 列表 与 **[腾讯云云开发者社区 MCP 广场](https://cloud.t
 | [SSL 证书 MCP](src/ssl) | 腾讯云 SSL 证书（SSL Certificates）<br>为您提供 SSL 证书的申请、管理、部署等服务，<br>为您提供一站式 HTTPS 解决方案。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11751) |
 | [Live 云直播 CSS MCP](src/live) | 云直播（Cloud Streaming Services，CSS）<br>为您提供极速、稳定、专业的云端直播处理服务。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11752) |
 | [云点播 VOD MCP](src/vod) | 面向音视频、图片等媒体，<br>提供制作上传、存储、转码、媒体处理、<br>媒体 AI、加速分发播放、<br>版权保护等一体化的高品质媒体服务。 | [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11752) |
+| [云数据库 TencentDB for Redis MCP](src/redis) | 腾讯云数据库 Redis®（TencentDB for Redis®）<br>是腾讯云打造的兼容 Redis 和 <br>Memcached 协议的缓存和存储服务。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11755) |
+| [云数据库 TencentDB for MongoDB MCP](src/mongodb) | 腾讯云数据库 MongoDB（TencentDB for MongoDB）<br>是腾讯云基于全球广受欢迎的 MongoDB <br>打造的高性能 NoSQL 数据库，100%完全兼容 MongoDB 协议。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11757) |
 
 ### IaaS
 |  服务名称 | 描述 | 本地部署 | 云部署 |
