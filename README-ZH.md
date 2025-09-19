@@ -93,6 +93,8 @@ MCP Server 列表 与 **[腾讯云云开发者社区 MCP 广场](https://cloud.t
 | DNSPod | 基于DNSPod解析的MCP服务器，支持快速添加域名、查看解析记录、查看解析用量。| 不支持 |  [![tencent-dnspod](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11743) |
 | [域名注册 MCP](src/domain) | 获得域名的方式是通过付费<br>获得域名一年或多年内的使用权，<br>我们称之为域名注册。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11749) |
 | Private DNS MCP | 基于私有域解析 Private DNS 的 MCP 服务器，支持快速创建私有域、查看私有域解析详情等。| 不支持 |  [![tencent-dnspod](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11756) |
+| [ 文字识别 OCR-文档抽取(多模态版) MCP](src/ocr-wordrecognition-multimodal) | 文档智能（Document AI）​​ 深度融合 OCR 与多模态大模型，<br>实现高精度识别、智能解析<br>与结构化信息抽取。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11761) |
+| [文字识别 OCR-通用文字识别（高精度版）MCP ](src/ocr-document-high) | 支持图像整体文字的检测和识别，<br>返回文字框位置与文字内容。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11762) |
 
 ### PaaS
 |  服务名称 | 描述 | 本地部署 | 云部署 |
@@ -110,6 +112,7 @@ MCP Server 列表 与 **[腾讯云云开发者社区 MCP 广场](https://cloud.t
 | [云点播 VOD MCP](src/vod) | 面向音视频、图片等媒体，<br>提供制作上传、存储、转码、媒体处理、<br>媒体 AI、加速分发播放、<br>版权保护等一体化的高品质媒体服务。 | [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11752) |
 | [云数据库 TencentDB for Redis MCP](src/redis) | 腾讯云数据库 Redis®（TencentDB for Redis®）<br>是腾讯云打造的兼容 Redis 和 <br>Memcached 协议的缓存和存储服务。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11755) |
 | [云数据库 TencentDB for MongoDB MCP](src/mongodb) | 腾讯云数据库 MongoDB（TencentDB for MongoDB）<br>是腾讯云基于全球广受欢迎的 MongoDB <br>打造的高性能 NoSQL 数据库，100%完全兼容 MongoDB 协议。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11757) |
+| [云函数 SCF MCP](src/scf) | 云函数（Serverless Cloud Function，SCF）<br>是腾讯云为企业和开发者们提供的无服务器执行环境，<br>帮助您在无需购买和管理服务器<br>的情况下运行代码。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11757) |
 
 ### IaaS
 |  服务名称 | 描述 | 本地部署 | 云部署 |
@@ -118,6 +121,7 @@ MCP Server 列表 与 **[腾讯云云开发者社区 MCP 广场](https://cloud.t
 | [腾讯云CVM MCP服务器](src/mcp-server-cvm) | 腾讯云 CVM（Cloud Virtual Machine）MCP Server 实现，<br>用于在支持 MCP 的客户端中直接管理腾讯云实例与网络资源。| [![Install](https://img.shields.io/badge/Install-Cursor-blue?style=flat-square&logo=cursor)](https://cursor.com/en/install-mcp?name=tencent-cvm&config=eyJjb21tYW5kIjoidXZ4IG1jcC1zZXJ2ZXItY3ZtIiwiZGlzYWJsZWQiOmZhbHNlLCJhdXRvQXBwcm92ZSI6W10sImVudiI6eyJURU5DRU5UQ0xPVURfU0VDUkVUX0lEIjoiWU9VUl9TRUNSRVRfSURfSEVSRSIsIlRFTkNFTlRDTE9VRF9TRUNSRVRfS0VZIjoiWU9VUl9TRUNSRVRfS0VZX0hFUkUiLCJURU5DRU5UQ0xPVURfUkVHSU9OIjoiWU9VUl9SRUdJT05fSEVSRSJ9fQ%3D%3D) <br/> [![Install VS Code](https://img.shields.io/badge/Install-VS_Code-FF9900?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=tencent-cvm&config=%7B%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22mcp-server-cvm%22%5D%2C%22env%22%3A%7B%22TENCENTCLOUD_SECRET_ID%22%3A%22YOUR_SECRET_ID_HERE%22%2C%22TENCENTCLOUD_SECRET_KEY%22%3A%22YOUR_SECRET_KEY_HERE%22%2C%22TENCENTCLOUD_REGION%22%3A%22YOUR_REGION_HERE%22%7D%7D) |  [![tencent-cvm](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11728) |
 | 腾讯云Lighthouse MCP Server | 基于腾讯云 Lighthouse API 开发的 MCP(Model Context Protocol) 服务器，<br>用于与 AI 大模型进行交互，实现云服务器管理功能。| 不支持 |  [![tencent-lighthouse](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11473) |
 | [云硬盘 CBS MCP](src/cbs) | 云硬盘（Cloud Block Storage，CBS）<br>为您提供用于 CVM 的持久性数据块级存储服务。 | [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11750) |
+| 腾讯云HAI MCP服务器 | 腾讯云高性能应用服务(HAI)的MCP服务器, 支持对HAI上实例的状态查询、启动和停止等操作。| 不支持 |  [![tencent-dnspod](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11759) |
 
 ## 何时使用本地与远程 MCP 服务？
 
