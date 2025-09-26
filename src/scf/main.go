@@ -41,7 +41,7 @@ func main() {
 		),
 		mcp.WithObject(
 			"Code",
-			mcp.Description("函数代码. 注意：不能同时指定Cos、ZipFile或 DemoId。"),
+			mcp.Description("函数代码. 注意：不能同时指定Cos、ZipFile或 DemoId。详情请参考 https://cloud.tencent.com/document/api/583/17244#Code"),
 		),
 		mcp.WithString(
 			"Handler",
@@ -228,11 +228,7 @@ func main() {
 		),
 		mcp.WithObject(
 			"Code",
-			mcp.Description("函数代码"),
-		),
-		mcp.WithString(
-			"CodeSource",
-			mcp.Description("代码来源方式，支持 ZipFile, Cos, Inline 之一"),
+			mcp.Description("函数代码，详情请参考 https://cloud.tencent.com/document/api/583/17244#Code"),
 		),
 	)
 	mcpsvr.AddTool(scfUpdateFunctionCode, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
