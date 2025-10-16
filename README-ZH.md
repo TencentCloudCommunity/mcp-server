@@ -96,6 +96,8 @@ MCP Server 列表 与 **[腾讯云云开发者社区 MCP 广场](https://cloud.t
 | [ 文字识别 OCR-文档抽取(多模态版) MCP](src/ocr-wordrecognition-multimodal) | 文档智能（Document AI）​​ 深度融合 OCR 与多模态大模型，<br>实现高精度识别、智能解析<br>与结构化信息抽取。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11761) |
 | [文字识别 OCR-通用文字识别（高精度版）MCP](src/ocr-document-high) | 支持图像整体文字的检测和识别，<br>返回文字框位置与文字内容。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11762) |
 | [腾讯混元生图 MCP](src/aiart) | 腾讯混元生图是一款提供 <br>AI 图像生成与处理能力的 API 技术服务，<br>可以结合输入的文本或图像智能创作图像内容，<br>具有更精美的绘图品质、更强大的中文理解能力、<br>更多样的风格选择与更广泛的应用场景，<br>为高质量的图像内容创作、内容运营提供技术支持。| [Install Go Source](#通常对于-go-源码类的-mcp您可以) |  [![tencent-cdn](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11765) |
+| WeData指标语义层MCP | 基于WeData Unity Semantics MCP服务器，<br>快速实现数据分析智能体，<br>支持数据检索、数据查询等能力。| 不支持 |  [![tencent-dnspod](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11763) |
+| 联网搜索MCP(标准版) | 联网搜索MCP基于腾讯云产品<br>联网搜索API（Web Search API，wsa）封装而成，<br>底层搜索引擎来源于搜狗搜索，<br>以互联网全网公开资源为基础，<br>实现了从收录至召回排序全链路的智能搜索增强。| 不支持 |  [![tencent-dnspod](https://cloud.tencent.com/favicon.ico)](https://cloud.tencent.com/developer/mcp/server/11764) |
 
 ### PaaS
 |  服务名称 | 描述 | 本地部署 | 云部署 |
