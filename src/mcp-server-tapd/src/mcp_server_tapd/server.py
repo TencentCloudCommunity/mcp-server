@@ -1,5 +1,6 @@
 import os
 import json
+import html
 import requests
 import markdown
 from mcp.server.fastmcp import FastMCP
@@ -12,6 +13,96 @@ if config.mode == "http" or config.mode == "sse" or config.mode == "streamable-h
 else:
     mcp = FastMCP("mcp-tapd")
 client = TAPDClient()
+
+def _normalize_media_items(raw_media) -> list[dict]:
+    """Normalize supported media parameters into a single list."""
+    if not raw_media:
+        return []
+    if isinstance(raw_media, dict):
+        raw_media = [raw_media]
+    normalized = []
+    for item in raw_media:
+        if not isinstance(item, dict):
+            continue
+        media_type = str(item.get("type", "")).strip().lower()
+        url = str(item.get("url", "")).strip()
+        if media_type not in {"image", "video"} or not url:
+            continue
+        normalized.append({
+            "type": media_type,
+            "url": url,
+            "alt": str(item.get("alt", "")).strip(),
+            "poster": str(item.get("poster", "")).strip(),
+        })
+    return normalized
+
+def _extract_media_items(data: dict) -> list[dict]:
+    """Pop media-related fields from the payload before sending to TAPD."""
+    media_items = _normalize_media_items(data.pop("media", None))
+
+    image_url = data.pop("image_url", None)
+    if image_url:
+        media_items.append({"type": "image", "url": str(image_url).strip(), "alt": ""})
+
+    video_url = data.pop("video_url", None)
+    if video_url:
+        media_items.append({"type": "video", "url": str(video_url).strip(), "alt": "", "poster": ""})
+
+    for key, media_type in (("image_urls", "image"), ("video_urls", "video")):
+        urls = data.pop(key, None)
+        if not urls:
+            continue
+        if isinstance(urls, str):
+            urls = [urls]
+        if isinstance(urls, list):
+            for url in urls:
+                if isinstance(url, str) and url.strip():
+                    media_items.append({
+                        "type": media_type,
+                        "url": url.strip(),
+                        "alt": "",
+                        "poster": "",
+                    })
+
+    return [item for item in media_items if item.get("url")]
+
+def _render_media_html(media_items: list[dict]) -> str:
+    blocks = []
+    for item in media_items:
+        url = html.escape(item["url"], quote=True)
+        if item["type"] == "image":
+            alt = html.escape(item.get("alt", ""), quote=True)
+            blocks.append(
+                f'<p><img src="{url}" alt="{alt}" style="max-width: 100%; height: auto;" /></p>'
+            )
+            continue
+
+        poster = item.get("poster", "")
+        poster_attr = f' poster="{html.escape(poster, quote=True)}"' if poster else ""
+        blocks.append(
+            f'<p><video controls src="{url}"{poster_attr} style="max-width: 100%;"></video></p>'
+        )
+    return "\n".join(blocks)
+
+def _render_rich_description(data: dict, field_name: str = "description") -> None:
+    content = data.get(field_name, "")
+    if content is None:
+        content = ""
+    elif not isinstance(content, str):
+        content = str(content)
+
+    media_html = _render_media_html(_extract_media_items(data))
+    if field_name not in data and not media_html:
+        return
+
+    html_content = markdown.markdown(content, extensions=['extra', 'codehilite', 'toc'])
+    if '<p>' in html_content or '<h' in html_content or '<ul>' in html_content or '<ol>' in html_content:
+        content = html_content
+
+    if media_html:
+        content = f"{content}\n{media_html}" if content else media_html
+
+    data[field_name] = content
 
 def _filter_fields(data_list, fields_param=None):
     """
@@ -367,6 +458,31 @@ def update_story_or_task(workspace_id: int, options: dict = None) -> str:
             - status: 状态，原名
             - priority_label: 优先级，需要先检查get_stories_fields_info是否配置了候选值，如果不存在则使用默认的候选值 High => 高、Middle => 中、Low => 低、Nice To Have => 无关紧要，不使用 priority 字段
             - description: 描述
+            - media: 富媒体列表，支持 [{"type": "image"|"video", "url": "...", "alt": "...", "poster": "..."}]
+            - image_url: 单个图片直链，会以内嵌图片形式写入描述
+            - image_urls: 多个图片直链，会以内嵌图片形式写入描述
+            - video_url: 单个视频直链，会以内嵌视频形式写入描述
+            - video_urls: 多个视频直链，会以内嵌视频形式写入描述
+            - owner: 处理人
+            - cc: 抄送人
+            - developer: 开发人员
+            - begin: 预计开始
+            - due: 预计结束
+            - iteration_id: 迭代ID
+            - iteration_name: 迭代名称
+            - templated_id: 模板ID
+            - parent_id: 父需求ID
+            - workitem_type_id: 需求类别ID
+            - workitem_type_name: 需求类别名称
+            - category_id: 需求分类ID
+            - category_name: 需求分类名称
+            - release_id: 发布计划ID
+            - version: 版本
+            - module: 模块
+            - size: 规模点，整数类型
+            - story_id: 如果 entity_type 为 tasks，则表示任务关联的需求ID
+            - cus_{$自定义字段别名}: 自定义字段值，参数名会由后台自动转义为custom_field_*，如：cus_自定义字段的名称
+            - custom_field_*: 自定义字段参数
             等等...
     Returns: <str>,  # 需求或者任务所有字段数据的 json 格式
     Note: 需求链接格式为 {tapd_base_url}/{workspace_id}/prong/stories/view/{story_id}
@@ -388,10 +504,7 @@ def update_story_or_task(workspace_id: int, options: dict = None) -> str:
         options['entity_type'] = 'stories'
     if options:
         new_story.update(options)
-    if 'description' in new_story:
-        html = markdown.markdown(new_story["description"], extensions=['extra', 'codehilite', 'toc'])
-        if '<p>' in html or '<h' in html or '<ul>' in html or '<ol>' in html:
-            new_story["description"] = html
+    _render_rich_description(new_story)
     created_story = client.create_or_update_story(new_story)
     config = AppConfig()
     if config.tapd_base_url is None:
@@ -416,6 +529,11 @@ def create_story_or_task(workspace_id: int, name: str, options: dict = None) -> 
             - entity_type: 类型，需求/工作项 stories 或 任务 tasks（必填）
             - priority_label: 优先级，需要先检查get_stories_fields_info是否配置了候选值，如果不存在则使用默认的候选值 High => 高、Middle => 中、Low => 低、Nice To Have => 无关紧要，不使用 priority 字段
             - description: 描述
+            - media: 富媒体列表，支持 [{"type": "image"|"video", "url": "...", "alt": "...", "poster": "..."}]
+            - image_url: 单个图片直链，会以内嵌图片形式写入描述
+            - image_urls: 多个图片直链，会以内嵌图片形式写入描述
+            - video_url: 单个视频直链，会以内嵌视频形式写入描述
+            - video_urls: 多个视频直链，会以内嵌视频形式写入描述
             - owner: 处理人
             - cc: 抄送人
             - developer: 开发人员
@@ -532,10 +650,7 @@ def create_story_or_task(workspace_id: int, name: str, options: dict = None) -> 
     if options:
         data.update(options)
     
-    if 'description' in data:
-        html = markdown.markdown(data["description"], extensions=['extra', 'codehilite', 'toc'])
-        if '<p>' in html or '<h' in html or '<ul>' in html or '<ol>' in html:
-            data["description"] = html
+    _render_rich_description(data)
 
     created_story = client.create_or_update_story(data)
     config = AppConfig()
@@ -667,6 +782,11 @@ def update_bug(workspace_id: int, options: dict = None) -> dict:
             - id: 缺陷ID（必填）
             - title: 标题
             - description: 描述
+            - media: 富媒体列表，支持 [{"type": "image"|"video", "url": "...", "alt": "...", "poster": "..."}]
+            - image_url: 单个图片直链，会以内嵌图片形式写入描述
+            - image_urls: 多个图片直链，会以内嵌图片形式写入描述
+            - video_url: 单个视频直链，会以内嵌视频形式写入描述
+            - video_urls: 多个视频直链，会以内嵌视频形式写入描述
             - v_status: 状态别名(支持传入中文状态名称)，默认用这个字段
             - status: 状态，原名
             - priority_label: 优先级，需要先检查get_entity_custom_fields是否配置了自定义候选值，没有的话用默认的候选值 urgent=> 紧急、high=> 高、medium=> 中、low=> 低、insignificant=> 无关紧要，不使用 priority
@@ -689,10 +809,7 @@ def update_bug(workspace_id: int, options: dict = None) -> dict:
     if options:
         new_bug.update(options)
 
-    if 'description' in new_bug:
-        html = markdown.markdown(new_bug["description"], extensions=['extra', 'codehilite', 'toc'])
-        if '<p>' in html or '<h' in html or '<ul>' in html or '<ol>' in html:
-            new_bug["description"] = html
+    _render_rich_description(new_bug)
     user_nick = os.getenv("CURRENT_USER_NICK")
     if 'lastmodify' not in new_bug and user_nick:
         new_bug['lastmodify'] = user_nick
@@ -725,6 +842,11 @@ def create_bug(workspace_id: int, title: str, options: dict = None) -> dict:
             - auditer: 审核人员
             - confirmer: 验证人员
             - description: 描述
+            - media: 富媒体列表，支持 [{"type": "image"|"video", "url": "...", "alt": "...", "poster": "..."}]
+            - image_url: 单个图片直链，会以内嵌图片形式写入描述
+            - image_urls: 多个图片直链，会以内嵌图片形式写入描述
+            - video_url: 单个视频直链，会以内嵌视频形式写入描述
+            - video_urls: 多个视频直链，会以内嵌视频形式写入描述
             - priority_label: 优先级，需要先检查get_entity_custom_fields是否配置了自定义候选值，没有的话用默认的候选值 urgent=> 紧急、high=> 高、medium=> 中、low=> 低、insignificant=> 无关紧要，不使用 priority
             - severity: 严重程度，取值为 fatal => 致命、 serious => 严重、 normal => 一般、 prompt => 提示、advice => 建议
             - module: 模块
@@ -758,10 +880,7 @@ def create_bug(workspace_id: int, title: str, options: dict = None) -> dict:
     if options:
         new_bug.update(options)
     
-    if 'description' in new_bug:
-        html = markdown.markdown(new_bug["description"], extensions=['extra', 'codehilite', 'toc'])
-        if '<p>' in html or '<h' in html or '<ul>' in html or '<ol>' in html:
-            new_bug["description"] = html
+    _render_rich_description(new_bug)
     user_nick = os.getenv("CURRENT_USER_NICK")
     if 'reporter' not in new_bug and user_nick:
         new_bug['reporter'] = user_nick
@@ -787,6 +906,11 @@ def create_comments(workspace_id: int, options: dict = None) -> dict:
             - entry_type: 评论类型（取值： bug、 bug_remark （流转缺陷时候的评论）、 stories、 tasks 。）（必填）
             - author: 评论人（必填）
             - description: 内容（必填）
+            - media: 富媒体列表，支持 [{"type": "image"|"video", "url": "...", "alt": "...", "poster": "..."}]
+            - image_url: 单个图片直链，会以内嵌图片形式写入评论
+            - image_urls: 多个图片直链，会以内嵌图片形式写入评论
+            - video_url: 单个视频直链，会以内嵌视频形式写入评论
+            - video_urls: 多个视频直链，会以内嵌视频形式写入评论
             - root_id: 根评论ID
             - reply_id: 需求评论回复的ID
     Returns: <str>  # 新建评论的数据
@@ -805,10 +929,7 @@ def create_comments(workspace_id: int, options: dict = None) -> dict:
     if options:
         data.update(options)
     
-    if 'description' in data:
-        html = markdown.markdown(data["description"], extensions=['extra', 'codehilite', 'toc'])
-        if '<p>' in html or '<h' in html or '<ul>' in html or '<ol>' in html:
-            data["description"] = html
+    _render_rich_description(data)
     created_story = client.create_comments(data)
     return json.dumps(created_story, indent=2, ensure_ascii=False)
 
@@ -837,10 +958,7 @@ def update_comments(workspace_id: int, options: dict = None) -> dict:
     if options:
         data.update(options)
     
-    if 'description' in data:
-        html = markdown.markdown(data["description"], extensions=['extra', 'codehilite', 'toc'])
-        if '<p>' in html or '<h' in html or '<ul>' in html or '<ol>' in html:
-            data["description"] = html
+    _render_rich_description(data)
     created_story = client.create_comments(data)
     return json.dumps(created_story, indent=2, ensure_ascii=False)
 
