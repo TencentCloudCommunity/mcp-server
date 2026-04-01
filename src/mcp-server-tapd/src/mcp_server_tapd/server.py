@@ -226,7 +226,7 @@ def get_stories_or_tasks(workspace_id: int, options: dict = None) -> str:
 
     Args:
         workspace_id: 项目ID（必填）
-        options: 可选参数字典，支持以下字段：
+        options: 参数字典（包含必填字段，不可省略），支持以下字段：
             - entity_type: 类型，需求/工作项 stories 或 任务 tasks（必填）
             - id: ID，支持多ID查询，格式为 id1,id2,id3
             - name: 标题，支持模糊匹配，例如："%搜索词%"
@@ -392,7 +392,7 @@ def get_entity_custom_fields(workspace_id: int, options: dict = None) -> str:
     """获取 TAPD 需求或任务或迭代或测试用例的自定义字段配置
     Args:
         workspace_id: 项目ID（必填）
-        options: 可选参数字典，支持以下字段：
+        options: 参数字典（包含必填字段，不可省略），支持以下字段：
             - entity_type: 类型，需求 stories 或任务 tasks 或迭代 iterations 或测试用例 tcases（必填）
     Returns:  <str>  # 需求或者任务或迭代或测试用例所有自定义字段配置数据的 json 格式
     """
@@ -418,7 +418,7 @@ def get_story_or_task_count(workspace_id: int, options: dict = None) -> str:
     TAPD API 文档：https://open.tapd.cn/document/api-doc/API%E6%96%87%E6%A1%A3/api_reference/story/get_stories_count.html
     Args:
         workspace_id: 项目ID（必填）
-        options: 可选参数字典，支持以下字段：
+        options: 参数字典（包含必填字段，不可省略），支持以下字段：
             - entity_type: 类型，需求stories或任务tasks（必填）
             - id: ID
             - name: 标题
@@ -450,7 +450,7 @@ def update_story_or_task(workspace_id: int, options: dict = None) -> str:
     TAPD API 文档：https://open.tapd.cn/document/api-doc/API%E6%96%87%E6%A1%A3/api_reference/story/update_story.html
     Args:
         workspace_id: 项目ID（必填）
-        options: 可选参数字典，支持以下字段：
+        options: 参数字典（包含必填字段，不可省略），支持以下字段：
             - entity_type: 类型，需求/工作项 stories 或 任务 tasks（必填）
             - id: 需求或任务ID（必填）
             - name: 标题
@@ -525,7 +525,7 @@ def create_story_or_task(workspace_id: int, name: str, options: dict = None) -> 
     Args:
         workspace_id: 项目ID（必填）
         name: 需求或任务的标题（必填）
-        options: 可选参数字典，支持以下字段：
+        options: 参数字典（包含必填字段，不可省略），支持以下字段：
             - entity_type: 类型，需求/工作项 stories 或 任务 tasks（必填）
             - priority_label: 优先级，需要先检查get_stories_fields_info是否配置了候选值，如果不存在则使用默认的候选值 High => 高、Middle => 中、Low => 低、Nice To Have => 无关紧要，不使用 priority 字段
             - description: 描述
@@ -778,7 +778,7 @@ def update_bug(workspace_id: int, options: dict = None) -> dict:
     TAPD API 文档：https://open.tapd.cn/document/api-doc/API%E6%96%87%E6%A1%A3/api_reference/bug/update_bug.html
     Args:
         workspace_id: 项目ID（必填）
-        options: 可选参数字典，支持以下字段：
+        options: 参数字典（包含必填字段，不可省略），支持以下字段：
             - id: 缺陷ID（必填）
             - title: 标题
             - description: 描述
@@ -901,7 +901,7 @@ def create_comments(workspace_id: int, options: dict = None) -> dict:
     TAPD API 文档：https://open.tapd.cn/document/api-doc/API%E6%96%87%E6%A1%A3/api_reference/comment/add_comment.html
     Args:
         workspace_id: 项目ID（必填）
-        options: 可选参数字典，支持以下字段：
+        options: 参数字典（包含必填字段，不可省略），支持以下字段：
             - entry_id: 评论所依附的业务对象实体id（必填）
             - entry_type: 评论类型（取值： bug、 bug_remark （流转缺陷时候的评论）、 stories、 tasks 。）（必填）
             - author: 评论人（必填）
@@ -938,7 +938,7 @@ def update_comments(workspace_id: int, options: dict = None) -> dict:
     """更新评论，返回更新评论的数据
     Args:
         workspace_id: 项目ID（必填）
-        options: 可选参数字典，支持以下字段：
+        options: 参数字典（包含必填字段，不可省略），支持以下字段：
             - id: 评论id（必填）
             - description: 内容（必填）
             - change_creator: 变更人（必填）
@@ -1469,7 +1469,7 @@ def create_wiki(workspace_id: int, options: dict = None) -> dict:
     """新建Wiki，返回新建Wiki的数据
     Args:
         workspace_id(int): 项目ID（必填）
-        options: 可选参数字典，支持以下字段：
+        options: 参数字典（包含必填字段，不可省略），支持以下字段：
             - name(str): 标题（必填）
             - markdown_description: wiki 内容，Markdown 格式
             - creator: 创建人（必填）
@@ -1507,7 +1507,7 @@ def update_wiki(workspace_id: int, options: dict = None) -> dict:
     """更新 TAPD wiki
     Args:
         workspace_id: 项目ID（必填）
-        options: 可选参数字典，支持以下字段：
+        options: 参数字典（包含必填字段，不可省略），支持以下字段：
             - id: wiki ID（必填）
             - name(str): 标题
             - markdown_description: wiki 内容，Markdown 格式
