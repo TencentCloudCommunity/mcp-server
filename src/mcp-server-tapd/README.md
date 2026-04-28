@@ -87,3 +87,30 @@ python server.py --mode=streamable-http --host="0.0.0.0" --port=8000 --api-user=
   }
 }
 ```
+
+## 富媒体描述
+`create_bug`、`update_bug`、`create_story_or_task`、`update_story_or_task`、`create_comments`、`update_comments` 支持把外部图片或视频直链直接写进 TAPD 富文本描述/评论。
+
+可用参数：
+- `media`: 结构化媒体列表，例如 `[{ "type": "image", "url": "https://example.com/a.png" }, { "type": "video", "url": "https://example.com/demo.mp4" }]`
+- `image_url` / `image_urls`: 单个或多个图片直链
+- `video_url` / `video_urls`: 单个或多个视频直链
+
+示例：
+```json
+{
+  "workspace_id": 55508687,
+  "title": "支付回调失败",
+  "options": {
+    "description": "复现步骤见下方录屏",
+    "media": [
+      { "type": "image", "url": "https://example.com/screenshot.png", "alt": "错误截图" },
+      { "type": "video", "url": "https://example.com/demo.mp4" }
+    ]
+  }
+}
+```
+
+注意：
+- 图片/视频必须是浏览器可直接访问的直链
+- 使用临时签名 URL 时，链接过期后 TAPD 中的媒体也会失效
