@@ -36,6 +36,7 @@ Implementation of Tencent Cloud CVM (Cloud Virtual Machine) MCP server for manag
 | `TerminateInstances` | Terminate instances |
 | `ResetInstancesPassword` | Reset instance password |
 | `ResetInstance` | Reinstall instance OS |
+| `DescribeInstanceVncUrl` | Query instance VNC management terminal URL (valid for 15 seconds, one-time use; instance must be RUNNING) |
 
 ### 🔐 Security Group Management
 | Tool Name | Description |

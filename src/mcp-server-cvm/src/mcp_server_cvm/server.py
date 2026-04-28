@@ -1024,6 +1024,34 @@ async def handle_list_tools() -> list[types.Tool]:
                 "required": ["Region", "Zone", "InstanceType", "InstanceChargeType"],
             },
         ),
+        types.Tool(
+            name="DescribeInstanceVncUrl",
+            description=(
+                "查询实例管理终端（VNC）登录地址，可通过浏览器访问实例的图形化控制台，"
+                "常用于 SSH/RDP 不可用时的排障场景。"
+                "重要限制："
+                "1) 仅支持运行中（RUNNING）的实例，STOPPED 实例无法使用；"
+                "2) 返回的 InstanceVncUrl 有效期仅 15 秒，过期需重新调用；"
+                "3) 地址为一次性凭证，一旦被访问即自动失效；"
+                "4) 连接断开后每分钟重连次数不超过 30 次；"
+                "5) 接口默认调用频率 10 次/秒。"
+                "建议即取即用，不要缓存该 URL。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "Region": {
+                        "type": "string",
+                        "description": "地域，如 ap-guangzhou",
+                    },
+                    "InstanceId": {
+                        "type": "string",
+                        "description": "待查询实例的ID，需处于运行中（RUNNING）状态，例如 ins-xxxxxxxx",
+                    }
+                },
+                "required": ["Region", "InstanceId"],
+            },
+        ),
     ]
 
 @server.call_tool()
@@ -1224,6 +1252,11 @@ async def handle_call_tool(
                 instance_charge_type=arguments["InstanceChargeType"],
                 is_recommend_under_stock=arguments.get("IsRecommendUnderStock", False),
                 is_compare=arguments.get("IsCompare", False)
+            )
+        elif name == "DescribeInstanceVncUrl":
+            result = tool_cvm.describe_instance_vnc_url(
+                region=region,
+                instance_id=arguments.get("InstanceId")
             )
         else:
             raise ValueError(f"未知的工具: {name}")

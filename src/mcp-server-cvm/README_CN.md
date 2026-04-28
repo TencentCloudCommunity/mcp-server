@@ -36,6 +36,7 @@
 | `TerminateInstances` | 销毁实例 |
 | `ResetInstancesPassword` | 重置实例密码 |
 | `ResetInstance` | 重装实例操作系统 |
+| `DescribeInstanceVncUrl` | 查询实例 VNC 管理终端登录地址（有效期 15 秒、一次性使用；实例须处于运行中状态） |
 
 ### 🔐 安全组管理
 | 工具名称 | 功能说明 |
