@@ -721,4 +721,63 @@ def quick_run_instance(
     result_dict = json.loads(result)
     result_dict["Password"] = password
     
-    return json.dumps(result_dict, ensure_ascii=False) 
+    return json.dumps(result_dict, ensure_ascii=False)
+
+def describe_instance_vnc_url(region: str, instance_id: str) -> str:
+    """查询实例管理终端（VNC）的登录地址
+
+    该接口用于获取指定实例的 VNC 管理终端登录地址。通过该 URL 可通过浏览器
+    直接访问实例的图形化控制台，常用于排障（如网络不通、系统无法远程登录等场景）。
+
+    重要使用限制（来自腾讯云官方文档）：
+        - 处于 STOPPED 状态的实例无法使用该功能，仅支持运行中（RUNNING）的实例。
+        - 返回的 InstanceVncUrl 有效期仅为 15 秒，若 15 秒内未使用该链接访问，
+          地址将自动失效，需要重新调用本接口获取新的地址。
+        - InstanceVncUrl 为一次性凭证：地址一旦被访问即自动失效，再次使用
+          必须重新调用本接口获取。
+        - 连接断开后，每分钟内重新连接的次数不能超过 30 次。
+        - 默认接口调用频率为 10 次/秒。
+
+    Args:
+        region (str): 地域ID，如 ap-guangzhou
+        instance_id (str): 待查询实例的 ID，例如 ins-xxxxxxxx
+
+    Returns:
+        str: API 响应结果的 JSON 字符串（腾讯云 SDK 的 Response 内层对象），包含以下字段：
+            - InstanceVncUrl: 实例的管理终端地址（URL 编码后的 wss 链接，有效期 15s、一次性）
+            - VncAccessUrl: 为方便使用额外拼接的完整浏览器访问地址，格式为：
+                https://img.qcloud.com/qcloud/app/active_vnc/index.html?InstanceVncUrl=${InstanceVncUrl}
+              （同样受上述 15 秒有效期 + 一次性限制，建议即取即用）
+            - UsageNotice: 针对调用方（含 LLM）的明文使用限制提醒
+            - RequestId: 请求唯一标识
+    """
+    if not instance_id:
+        raise ValueError("InstanceId 不能为空")
+
+    client = get_cvm_client(region)
+    req = cvm_models.DescribeInstanceVncUrlRequest()
+    params = {
+        "InstanceId": instance_id
+    }
+    req.from_json_string(json.dumps(params))
+    resp = client.DescribeInstanceVncUrl(req)
+
+    # 解析返回结果并拼接完整的 VNC 访问链接，方便直接使用。
+    # 注意：该链接与 InstanceVncUrl 共享相同的使用限制（15秒有效 + 一次性）。
+    # SDK 的 to_json_string() 返回的是 Response 内层对象（即不含 "Response" 外壳），
+    # 所以此处直接在顶层字段上增强。
+    result = json.loads(resp.to_json_string())
+    instance_vnc_url = result.get("InstanceVncUrl")
+    if instance_vnc_url:
+        result["VncAccessUrl"] = (
+            f"https://img.qcloud.com/qcloud/app/active_vnc/index.html?"
+            f"InstanceVncUrl={instance_vnc_url}"
+        )
+        # 附带一份使用限制说明，提醒调用方即取即用
+        result["UsageNotice"] = (
+            "InstanceVncUrl/VncAccessUrl 有效期仅 15 秒，且一旦被访问即自动失效；"
+            "如需再次登录请重新调用 DescribeInstanceVncUrl 获取新地址。"
+            "仅运行中的实例可用，连接断开后每分钟重连不超过 30 次。"
+        )
+
+    return json.dumps(result, ensure_ascii=False)
