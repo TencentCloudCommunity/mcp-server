@@ -55,8 +55,6 @@ MCP servers enhance the capabilities of foundation models (FMs) in several key w
 
 - **Improved Output Quality**: By providing relevant information directly in the model's context, MCP servers significantly improve model responses for specialized domains like TencentCloud services. This approach reduces hallucinations, provides more accurate technical details, enables more precise code generation, and ensures recommendations align with current TencentCloud best practices and service capabilities.
 
-- **Access to Latest Documentation**: FMs may not have knowledge of recent releases, APIs, or SDKs. MCP servers bridge this gap by pulling in up-to-date documentation, ensuring your AI assistant always works with the latest TencentCloud capabilities.
-
 - **Workflow Automation**: MCP servers convert common workflows into tools that foundation models can use directly.
 
 - **Specialized Domain Knowledge**: MCP servers provide deep, contextual knowledge about TencentCloud services that might not be fully represented in foundation models' training data, enabling more accurate and helpful responses for cloud development tasks.
