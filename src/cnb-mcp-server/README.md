@@ -13,7 +13,7 @@ CNB(https://cnb.cool) toolkits for LLMs supporting the MCP protocol
       "command": "npx",
       "args": ["-y", "-p", "@cnbcool/mcp-server", "cnb-mcp-stdio"],
       "env": {
-        "API_BASE_URL": "<BASE_URL>", // optional, defualt vaule: https://api.cnb.cool
+        "API_BASE_URL": "<BASE_URL>", // optional, default value: https://api.cnb.cool
         "API_TOKEN": "<YOUR_TOKEN>"
       }
     }
@@ -50,7 +50,7 @@ CNB(https://cnb.cool) toolkits for LLMs supporting the MCP protocol
       "command": "node",
       "args": ["/path/to/cnbcool/mcp-server/dist/stdio.js"],
       "env": {
-        "API_BASE_URL": "<BASE_URL>", // optional, defualt vaule: https://api.cnb.cool
+        "API_BASE_URL": "<BASE_URL>", // optional, default value: https://api.cnb.cool
         "API_TOKEN": "<YOUR_TOKEN>"
       }
     }
