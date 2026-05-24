@@ -49,7 +49,7 @@ CNB(https://cnb.cool) 支持 MCP 协议的 MCP Server
       "command": "node",
       "args": ["/path/to/cnbcool/mcp-server/dist/stdio.js"],
       "env": {
-        "API_BASE_URL": "<BASE_URL>", // optional, defualt vaule: https://api.cnb.cool
+        "API_BASE_URL": "<BASE_URL>", // optional, default value: https://api.cnb.cool
         "API_TOKEN": "<YOUR_TOKEN>"
       }
     }
