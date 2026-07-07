@@ -1,0 +1,95 @@
+VALIDATION_DIR=/tmp/pgmcp-assume-role.XC45zq
+STEP=startup
+RESULT=ok
+2026/07/07 15:15:49 Instance tools registered: 15
+2026/07/07 15:15:49 Account tools registered: 6
+2026/07/07 15:15:49 Database tools registered: 4
+2026/07/07 15:15:49 Parameter tools registered: 5
+2026/07/07 15:15:49 Backup tools registered: 8
+2026/07/07 15:15:49 Monitoring tools registered: 3
+2026/07/07 15:15:49 Network tools registered: 4
+2026/07/07 15:15:49 Readonly tools registered: 2
+2026/07/07 15:15:49 SSL tools registered: 1
+2026/07/07 15:15:49 Total tools registered: 48
+2026/07/07 15:15:49 SSE server listening on 127.0.0.1:19094
+2026/07/07 15:15:49 MCP auth mode: issued-token
+2026/07/07 15:15:49 Token store: /tmp/pgmcp-assume-role.XC45zq/tokens.sqlite
+2026/07/07 15:15:49 Credential source: token-bound dynamic credentials
+2026/07/07 15:15:49 warning: issued-token mode is enabled but ADMIN_API_TOKEN is empty; admin token API is disabled
+2026/07/07 15:15:49 TencentCloud token exchange enabled on /auth/token-exchange/tencentcloud (assume-role)
+=== MCP Server Configuration ===
+Copy the following configuration to your MCP client:
+
+{
+STEP=exchange
+HTTP_CODE=201
+HAS_TOKEN=true
+SUBJECT_ID=tencentcloud:100023351712:100050127078
+CREDENTIAL_KIND=assume-role
+CREDENTIAL_EXPIRES_AT=2026-07-07T07:45:50Z
+EXPIRES_AT=2026-07-07T07:45:50Z
+ERROR=
+STEP=smoke
+EXIT_CODE=0
+== MCP smoke test ==
+SSE URL: http://127.0.0.1:19094/sse
+Region: ap-guangzhou
+InstanceID: <not set>
+Note: instance-scoped readonly calls will be skipped.
+
+== initialize ==
+server: 腾讯云 Postgres MCP 1.0.0
+capabilities: {"logging":{},"resources":{"subscribe":true,"listChanged":true},"tools":{"listChanged":true}}
+
+== ping ==
+status: ok
+
+== tools/list ==
+tool_count: 48
+sample_tools(first_12_sorted):
+  - postgres-CloneDBInstance
+  - postgres-CloseDBExtranetAccess
+  - postgres-CreateAccount
+  - postgres-CreateBaseBackup
+  - postgres-CreateDatabase
+  - postgres-CreateInstances
+  - postgres-CreateReadOnlyDBInstance
+  - postgres-DeleteAccount
+  - postgres-DescribeAccountPrivileges
+  - postgres-DescribeAccounts
+  - postgres-DescribeAvailableRecoveryTime
+  - postgres-DescribeBackupDownloadURL
+
+== schema spot check ==
+postgres-DescribeRegions -> found=true required=[region] has_confirm=false
+postgres-DescribeDBVersions -> found=true required=[region] has_confirm=false
+postgres-DescribeDBInstances -> found=true required=[region] has_confirm=false
+postgres-DescribeDBInstanceAttribute -> found=true required=[region] has_confirm=false
+postgres-CreateInstances -> found=true required=[region Zone] has_confirm=true
+postgres-CreateReadOnlyDBInstance -> found=true required=[region] has_confirm=true
+
+== tools/call ==
+-- postgres-DescribeRegions --
+request: {"region":"ap-guangzhou"}
+is_error: false
+response: {"Response":{"TotalCount":29,"RegionSet":[{"Region":"ap-guangzhou","RegionName":"华南地区（广州）","RegionId":1,"RegionState":"AVAILABLE","SupportInternational":1},{"Region":"ap-shanghai","RegionName":"华东地区（上海）","RegionId":4,"RegionState":"AVAILABLE","SupportInternational":1},{"Region":"ap-hongkong","RegionName":"港澳台地区（中国香港）","RegionId":5,"RegionState":"AVAILABLE","SupportInternational":1},{"Region":"na-toronto","RegionName":"北美地区（多伦多）","RegionId":6,"RegionState":"UNAVAILABLE","SupportInternational":0},{"Region":"ap-shanghai-fsi","RegionName":"华东地区（上海金融）","RegionId":7,"RegionState":"AVAILABLE","SupportInterna...(truncated)
+
+-- postgres-DescribeDBVersions --
+request: {"region":"ap-guangzhou"}
+is_error: false
+response: {"Response":{"VersionSet":[{"DBEngine":"postgresql","DBVersion":"9.5.25","DBMajorVersion":"9.5","DBKernelVersion":"v9.5.25_r1.6","SupportedFeatureNames":[],"Status":"AVAILABLE","AvailableUpgradeTarget":["v18.4_r1.8","v17.10_r1.18","v16.14_r1.25","v15.18_r1.30","v14.23_r1.44","v13.22_r1.35","v12.22_r1.40","v11.22_r1.38","v10.23_r1.24"]},{"DBEngine":"postgresql","DBVersion":"9.5.25","DBMajorVersion":"9.5","DBKernelVersion":"v9.5.25_r1.5","SupportedFeatureNames":[],"Status":"AVAILABLE","AvailableUpgradeTarget":["v18.4_r1.8","v17.10_r1.18","v16.14_r1.25","v15.18_r1.30","v14.23_r1.44","v13.22_r1.35","v12.22_r1.40","v11.22_r1.38","v10.23_r1.24","v9.5.25_r1.6"]},{"DBEngine":"postgresql","DBVersion"...(truncated)
+
+-- postgres-DescribeDBInstances --
+request: {"Limit":2,"Offset":0,"region":"ap-guangzhou"}
+is_error: false
+response: {"Response":{"TotalCount":19,"DBInstanceSet":[{"Region":"ap-guangzhou","Zone":"ap-guangzhou-3","VpcId":"vpc-jgko9qzp","SubnetId":"subnet-g6lnc8z8","DBInstanceId":"postgres-679crkcr","DBInstanceName":"yidi-dts","DBInstanceStatus":"running","DBInstanceMemory":2,"DBInstanceStorage":10,"DBInstanceCpu":1,"DBInstanceClass":"cdb.pg.ts1.2g","DBMajorVersion":"10","DBVersion":"10.17","DBKernelVersion":"v10.17_r1.14","DBInstanceType":"primary","DBInstanceVersion":"standard","DBCharset":"UTF8","CreateTime":"2024-01-18 14:23:52","UpdateTime":"2025-02-27 23:48:29","ExpireTime":"0000-00-00 00:00:00","IsolatedTime":"0000-00-00 00:00:00","PayType":"postpaid","AutoRenew":0,"DBInstanceNetInfo":[{"Address":"","...(truncated)
+
+-- postgres-DescribeDBInstanceAttribute --
+skipped: missing instance id
+
+-- postgres-CreateInstances --
+request: {"confirm":false,"region":"ap-guangzhou"}
+is_error: false
+response: {"code":403,"error":"subject 'tencentcloud:100023351712:100050127078' lacks scope 'pg.write' for tool 'CreateInstances'"}
+
+RESULT=ok

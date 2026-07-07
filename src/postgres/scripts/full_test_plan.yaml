@@ -1,0 +1,252 @@
+# PG MCP 全量接口测试配置模板
+#
+# 使用方式：
+#   1. 复制本文件后按你的测试环境填写 target / args
+#   2. 只在你明确接受风险时，将对应步骤的 approved 改为 true
+#   3. 执行 ./scripts/run_full_test.sh 或 ./scripts/run_write_test.sh
+#
+# 安全约定：
+#   - enabled=true 且 approved=true 才会真实执行
+#   - 本模板禁止提交真实实例 ID、账号、密码、安全组、下载链接等环境细节
+#   - 建议把私有环境参数保存在内部系统或本地副本中，不直接提交到仓库
+
+server:
+  url: http://127.0.0.1:9000/mcp
+
+target:
+  region: ap-xxx
+  db_instance_id: postgres-xxxxxxxx
+
+options:
+  timeout_seconds: 60
+  default_pause_seconds: 2
+  stop_on_failure: false
+
+steps:
+  ModifyDBInstanceName:
+    enabled: true
+    approved: false
+    gate_note: "会修改实例名称，确认影响后再改为 true"
+    args:
+      InstanceName: mcp-write-test
+
+  CreateAccount:
+    enabled: true
+    approved: false
+    gate_note: "创建测试账号，请替换为你自己的测试用户名与强密码"
+    args:
+      UserName: mcp_test_user
+      Password: "<replace-with-strong-password>"
+      Type: normal
+      Remark: mcp_write_test
+
+  ResetAccountPassword:
+    enabled: true
+    approved: false
+    gate_note: "重置测试账号密码，请先确认账号可安全修改"
+    args:
+      UserName: mcp_test_user
+      Password: "<replace-with-new-strong-password>"
+
+  ModifyAccountPrivilegesGrant:
+    enabled: true
+    approved: false
+    gate_note: "授予测试账号权限，执行前请确认对象名和权限集"
+    args:
+      UserName: mcp_test_user
+      ModifyPrivilegeSet:
+        - ModifyType: grantObject
+          DatabasePrivilege:
+            Object:
+              ObjectType: database
+              ObjectName: mcp_test_db
+              DatabaseName: mcp_test_db
+            PrivilegeSet: [CONNECT]
+    verify_args:
+      UserName: mcp_test_user
+      DatabaseObjectSet:
+        - ObjectType: database
+          ObjectName: mcp_test_db
+          DatabaseName: mcp_test_db
+
+  ModifyAccountPrivilegesRevoke:
+    enabled: true
+    approved: false
+    gate_note: "回收测试账号权限，建议与 grant 配套验证"
+    args:
+      UserName: mcp_test_user
+      ModifyPrivilegeSet:
+        - ModifyType: revokeObject
+          IsCascade: false
+          DatabasePrivilege:
+            Object:
+              ObjectType: database
+              ObjectName: mcp_test_db
+              DatabaseName: mcp_test_db
+            PrivilegeSet: [CONNECT]
+    verify_args:
+      UserName: mcp_test_user
+      DatabaseObjectSet:
+        - ObjectType: database
+          ObjectName: mcp_test_db
+          DatabaseName: mcp_test_db
+
+  DeleteAccount:
+    enabled: true
+    approved: false
+    gate_note: "删除测试账号；建议只删除本次创建的账号"
+    args:
+      UserName: mcp_test_user
+
+  CreateDatabase:
+    enabled: true
+    approved: false
+    gate_note: "创建测试数据库；执行前确认数据库名与属主"
+    args:
+      DatabaseName: mcp_test_db
+      DatabaseOwner: postgres
+      Encoding: UTF8
+
+  ModifyDatabaseOwner:
+    enabled: true
+    approved: false
+    gate_note: "修改数据库属主，建议只对测试数据库执行"
+    args:
+      DatabaseName: mcp_test_db
+      DatabaseOwner: postgres
+
+  DescribeBackupDownloadURL:
+    enabled: true
+    approved: false
+    gate_note: "会生成真实备份下载链接，请确认允许暴露给本次测试"
+    args:
+      BackupType: BaseBackup
+      BackupId: ""
+      URLExpireTime: 1
+
+  CreateBaseBackup:
+    enabled: true
+    approved: false
+    gate_note: "创建基础备份，会占用备份存储和 IO"
+    args: {}
+
+  OpenDBExtranetAccess:
+    enabled: true
+    approved: false
+    gate_note: "开启公网访问会增加暴露面，请明确写清允许范围"
+    args:
+      IsIpv6: 0
+
+  CloseDBExtranetAccess:
+    enabled: true
+    approved: false
+    gate_note: "关闭公网访问会影响依赖公网连接的访问"
+    args:
+      IsIpv6: 0
+
+  ModifyDBInstanceSecurityGroups:
+    enabled: true
+    approved: false
+    gate_note: "修改安全组为全量替换；建议优先复用当前安全组做验证"
+    args:
+      ReuseCurrentSecurityGroupSet: true
+      SecurityGroupIdSet: []
+
+  UpgradeDBInstanceKernelVersion:
+    enabled: true
+    approved: false
+    gate_note: "强烈建议先 DryRun=true，并手动填写目标版本"
+    args:
+      TargetDBKernelVersion: ""
+      DryRun: true
+      SwitchTag: 0
+
+  RestartDBInstance:
+    enabled: true
+    approved: false
+    gate_note: "会导致实例短暂重启闪断"
+    args: {}
+
+  IsolateDBInstances:
+    enabled: true
+    approved: false
+    gate_note: "会使实例隔离、不可用；仅在明确接受时放行"
+    args: {}
+
+  DisIsolateDBInstances:
+    enabled: true
+    approved: false
+    gate_note: "解除隔离需要确认实例计费与恢复策略"
+    args:
+      Period: 1
+      AutoVoucher: true
+      VoucherIds: []
+
+  ModifyDBInstanceParameters:
+    enabled: true
+    approved: false
+    gate_note: "会真实修改数据库参数，不可随意放行"
+    args:
+      ParamList:
+        - Name: log_min_duration_statement
+          Value: "1000"
+
+  CreateInstances:
+    enabled: true
+    approved: false
+    gate_note: "会真实创建新实例并产生费用；以下字段请全部手填确认"
+    args:
+      Zone: ""
+      SpecCode: ""
+      Storage: 100
+      InstanceCount: 1
+      Period: 1
+      Charset: UTF8
+      AdminName: mcpadmin
+      AdminPassword: "<replace-with-strong-password>"
+      DBMajorVersion: ""
+      InstanceChargeType: POSTPAID_BY_HOUR
+      VpcId: ""
+      SubnetId: ""
+      Name: mcp-batch-create
+      SecurityGroupIds: []
+
+  ModifyDBInstanceSpec:
+    enabled: true
+    approved: false
+    gate_note: "会触发实例变配并可能产生费用 / 短暂影响"
+    args:
+      Memory: 4
+      Storage: 120
+      SwitchTag: 0
+
+  CloneDBInstance:
+    enabled: true
+    approved: false
+    gate_note: "会克隆新实例并产生费用；BackupSetId 可留空自动取第一条基础备份"
+    args:
+      SpecCode: ""
+      Storage: 100
+      Period: 1
+      InstanceChargeType: POSTPAID_BY_HOUR
+      VpcId: ""
+      SubnetId: ""
+      Name: mcp-batch-clone
+      BackupSetId: ""
+      SecurityGroupIds: []
+
+  CreateReadOnlyDBInstance:
+    enabled: true
+    approved: false
+    gate_note: "会创建只读实例并产生费用；未填主实例 ID 时默认取 target.db_instance_id"
+    args:
+      SpecCode: ""
+      Storage: 100
+      InstanceCount: 1
+      Period: 1
+      Zone: ""
+      VpcId: ""
+      SubnetId: ""
+      InstanceChargeType: POSTPAID_BY_HOUR
+      Name: mcp-batch-readonly
+      SecurityGroupIds: []

@@ -1,0 +1,9 @@
+# OS
+.DS_Store
+
+# Environment secrets (keep .env.example as template)
+**/.env
+!**/.env.example
+
+# Local build artifacts
+/src/postgres/postgres

@@ -1,0 +1,37 @@
+{
+  "name": "postgres-mcp-server",
+  "version": "1.0.0",
+  "description": "TencentDB for PostgreSQL MCP Server launcher for npx",
+  "license": "Apache-2.0",
+  "bin": {
+    "postgres-mcp-server": "bin/postgres-mcp-server.js"
+  },
+  "files": [
+    "bin/",
+    "README.md",
+    "DEPLOY.md",
+    "SCF_DEPLOY.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build:npx-release": "./scripts/build_npx_release.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TencentCloudCommunity/mcp-server.git",
+    "directory": "src/postgres"
+  },
+  "bugs": {
+    "url": "https://github.com/TencentCloudCommunity/mcp-server/issues"
+  },
+  "homepage": "https://github.com/TencentCloudCommunity/mcp-server/tree/main/src/postgres",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "tencentcloud",
+    "postgresql",
+    "tencentdb"
+  ]
+}

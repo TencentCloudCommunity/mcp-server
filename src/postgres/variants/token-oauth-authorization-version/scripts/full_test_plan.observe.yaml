@@ -1,0 +1,245 @@
+# PG MCP 观察式写验证模板
+#
+# 适用于需要分步执行、逐步观察云侧状态变化的场景。
+# 使用前请复制一份私有副本，再填写真实 target / args；不要把真实测试环境信息直接提交到仓库。
+
+server:
+  url: http://127.0.0.1:9000/sse
+
+target:
+  region: ap-xxx
+  db_instance_id: postgres-xxxxxxxx
+
+options:
+  timeout_seconds: 60
+  default_pause_seconds: 2
+  stop_on_failure: false
+
+steps:
+  ModifyDBInstanceName:
+    enabled: true
+    approved: false
+    gate_note: "会修改实例名称，请确认是否允许影响测试实例展示名"
+    args:
+      InstanceName: mcp-write-observe
+
+  CreateAccount:
+    enabled: true
+    approved: false
+    gate_note: "创建测试账号，请替换成你的测试用户名与强密码"
+    args:
+      UserName: mcp_observe_user
+      Password: "<replace-with-strong-password>"
+      Type: normal
+      Remark: mcp_write_observe
+
+  ResetAccountPassword:
+    enabled: true
+    approved: false
+    gate_note: "重置观察用测试账号的密码"
+    args:
+      UserName: mcp_observe_user
+      Password: "<replace-with-new-strong-password>"
+
+  ModifyAccountPrivilegesGrant:
+    enabled: true
+    approved: false
+    gate_note: "授予测试账号权限，执行前请确认对象名和权限集"
+    args:
+      UserName: mcp_observe_user
+      ModifyPrivilegeSet:
+        - ModifyType: grantObject
+          DatabasePrivilege:
+            Object:
+              ObjectType: database
+              ObjectName: mcp_observe_db
+              DatabaseName: mcp_observe_db
+            PrivilegeSet: [CREATE]
+    verify_args:
+      UserName: mcp_observe_user
+      DatabaseObjectSet:
+        - ObjectType: database
+          ObjectName: mcp_observe_db
+          DatabaseName: mcp_observe_db
+
+  ModifyAccountPrivilegesRevoke:
+    enabled: true
+    approved: false
+    gate_note: "回收刚才授予的权限，建议与 grant 配套验证"
+    args:
+      UserName: mcp_observe_user
+      ModifyPrivilegeSet:
+        - ModifyType: revokeObject
+          IsCascade: false
+          DatabasePrivilege:
+            Object:
+              ObjectType: database
+              ObjectName: mcp_observe_db
+              DatabaseName: mcp_observe_db
+            PrivilegeSet: [CREATE]
+    verify_args:
+      UserName: mcp_observe_user
+      DatabaseObjectSet:
+        - ObjectType: database
+          ObjectName: mcp_observe_db
+          DatabaseName: mcp_observe_db
+
+  DeleteAccount:
+    enabled: true
+    approved: false
+    gate_note: "删除测试账号；建议只删除本次创建的账号"
+    args:
+      UserName: mcp_observe_user
+
+  CreateDatabase:
+    enabled: true
+    approved: false
+    gate_note: "创建测试数据库；注意该 API 无删除配套接口"
+    args:
+      DatabaseName: mcp_observe_db
+      DatabaseOwner: postgres
+      Encoding: UTF8
+
+  ModifyDatabaseOwner:
+    enabled: true
+    approved: false
+    gate_note: "修改测试数据库属主，不自动改回"
+    args:
+      DatabaseName: mcp_observe_db
+      DatabaseOwner: postgres
+
+  DescribeBackupDownloadURL:
+    enabled: true
+    approved: false
+    gate_note: "会生成真实备份下载链接，请确认该行为符合本次测试要求"
+    args:
+      BackupType: BaseBackup
+      BackupId: ""
+      URLExpireTime: 2
+
+  CreateBaseBackup:
+    enabled: true
+    approved: false
+    gate_note: "创建基础备份，会占用备份存储和 IO"
+    args: {}
+
+  OpenDBExtranetAccess:
+    enabled: true
+    approved: false
+    gate_note: "开启公网访问会增加暴露面，请写清是否允许"
+    args:
+      IsIpv6: 0
+
+  CloseDBExtranetAccess:
+    enabled: true
+    approved: false
+    gate_note: "关闭公网访问会影响依赖公网连接的访问"
+    args:
+      IsIpv6: 0
+
+  ModifyDBInstanceSecurityGroups:
+    enabled: true
+    approved: false
+    gate_note: "修改安全组为全量替换；若只想验证接口可复用当前安全组"
+    args:
+      ReuseCurrentSecurityGroupSet: true
+      SecurityGroupIdSet: []
+
+  UpgradeDBInstanceKernelVersion:
+    enabled: true
+    approved: false
+    gate_note: "强烈建议先 DryRun=true；必须手填 TargetDBKernelVersion"
+    args:
+      TargetDBKernelVersion: ""
+      DryRun: true
+      SwitchTag: 0
+
+  RestartDBInstance:
+    enabled: true
+    approved: false
+    gate_note: "会导致实例短暂重启闪断"
+    args: {}
+
+  IsolateDBInstances:
+    enabled: true
+    approved: false
+    gate_note: "会使实例隔离、不可用；仅在明确接受时放行"
+    args: {}
+
+  DisIsolateDBInstances:
+    enabled: true
+    approved: false
+    gate_note: "解除隔离需要你确认实例计费与恢复策略"
+    args:
+      Period: 1
+      AutoVoucher: true
+      VoucherIds: []
+
+  ModifyDBInstanceParameters:
+    enabled: true
+    approved: false
+    gate_note: "会真实修改数据库参数，不可随意放行"
+    args:
+      ParamList:
+        - Name: log_min_duration_statement
+          Value: "1000"
+
+  CreateInstances:
+    enabled: true
+    approved: false
+    gate_note: "会真实创建新实例并产生费用；以下字段请全部手填确认"
+    args:
+      Zone: ""
+      SpecCode: ""
+      Storage: 100
+      InstanceCount: 1
+      Period: 1
+      Charset: UTF8
+      AdminName: mcpadmin
+      AdminPassword: "<replace-with-strong-password>"
+      DBMajorVersion: ""
+      InstanceChargeType: POSTPAID_BY_HOUR
+      VpcId: ""
+      SubnetId: ""
+      Name: mcp-observe-create
+      SecurityGroupIds: []
+
+  ModifyDBInstanceSpec:
+    enabled: true
+    approved: false
+    gate_note: "会触发实例变配并可能产生费用 / 短暂影响"
+    args:
+      Memory: 4
+      Storage: 120
+      SwitchTag: 0
+
+  CloneDBInstance:
+    enabled: true
+    approved: false
+    gate_note: "会克隆新实例并产生费用；BackupSetId 可留空自动取第一条基础备份"
+    args:
+      SpecCode: ""
+      Storage: 100
+      Period: 1
+      InstanceChargeType: POSTPAID_BY_HOUR
+      VpcId: ""
+      SubnetId: ""
+      Name: mcp-observe-clone
+      BackupSetId: ""
+      SecurityGroupIds: []
+
+  CreateReadOnlyDBInstance:
+    enabled: true
+    approved: false
+    gate_note: "会创建只读实例并产生费用；未填主实例 ID 时默认取 target.db_instance_id"
+    args:
+      SpecCode: ""
+      Storage: 100
+      InstanceCount: 1
+      Period: 1
+      Zone: ""
+      VpcId: ""
+      SubnetId: ""
+      InstanceChargeType: POSTPAID_BY_HOUR
+      Name: mcp-observe-readonly
+      SecurityGroupIds: []
