@@ -301,7 +301,50 @@ npx -y postgres-mcp-server@latest --transport sse --env-file .env
 - 默认 `transport` 是 `stdio`；也兼容 `TRANSPORT -> MCP_TRANSPORT`、`PORT -> MCP_SERVER_PORT`
 - 腾讯云凭证仍可直接使用 `TENCENTCLOUD_SECRET_ID` / `TENCENTCLOUD_SECRET_KEY`
 - 如需本地调试或跳过下载，可设置 `POSTGRES_MCP_BINARY_PATH=/path/to/postgres-server`
+- 如需先在**你自己的 GitHub fork** 上试跑，可加 `--release-repository <owner/repo>`，必要时再配合 `--release-tag <tag>`
 - 发布预编译资产可执行：`./scripts/build_npx_release.sh`
+
+#### 先在你自己的 GitHub 上试跑 `npx`（不需要先发 npm）
+
+适合 GitHub 新手的最小路径：**本地打一个 npm 包 + 你的 fork 上放 GitHub Release 资产**。
+
+1. 在 `src/postgres` 目录构建预编译二进制：
+
+```bash
+./scripts/build_npx_release.sh 1.0.3
+```
+
+2. 到你自己的 GitHub fork 创建一个 Release：
+
+- 仓库：`<你的 GitHub 用户名>/mcp-server`
+- Tag：`postgres-mcp-server-v1.0.3`
+- 上传文件：`dist/npx/` 目录下的全部文件
+
+3. 在本地打出 npm 包（不用发布到 npm）：
+
+```bash
+npm pack
+```
+
+4. 先验证 `npx` 能执行本地包：
+
+```bash
+npx -y ./postgres-mcp-server-1.0.3.tgz --version
+```
+
+5. 再切到你自己的 GitHub Release 做真实下载测试：
+
+```bash
+npx -y ./postgres-mcp-server-1.0.3.tgz --release-repository <你的 GitHub 用户名>/mcp-server
+```
+
+如果你的 Release tag 不是默认的 `postgres-mcp-server-v1.0.3`，再追加：
+
+```bash
+--release-tag <你的 tag>
+```
+
+这样你就能先验证：**包本身来自本地 `.tgz`，二进制来自你自己的 GitHub Release**。整个流程跑通后，再决定要不要正式发 npm。
 
 ---
 

@@ -13,26 +13,31 @@ const pkg = require('../package.json');
 
 const PACKAGE_NAME = pkg.name;
 const VERSION = pkg.version;
-const REPOSITORY = 'TencentCloudCommunity/mcp-server';
-const RELEASE_TAG = `postgres-mcp-server-v${VERSION}`;
+const DEFAULT_REPOSITORY = 'TencentCloudCommunity/mcp-server';
+const DEFAULT_RELEASE_TAG = `postgres-mcp-server-v${VERSION}`;
 const CHECKSUM_FILE = 'checksums.txt';
 const DEFAULT_CACHE_DIR = path.join(os.homedir(), '.cache', PACKAGE_NAME, VERSION, `${platformName()}-${archName()}`);
 
 const HELP_TEXT = `${PACKAGE_NAME} v${VERSION}\n\n` +
   '用法:\n' +
   '  npx -y postgres-mcp-server@latest\n' +
-  '  npx -y postgres-mcp-server@latest --transport sse --env-file .env\n\n' +
+  '  npx -y postgres-mcp-server@latest --transport sse --env-file .env\n' +
+  '  npx -y ./postgres-mcp-server-1.0.3.tgz --release-repository <owner/repo>\n\n' +
   '参数:\n' +
   '  --transport <stdio|streamable-http|sse>  覆盖 MCP_TRANSPORT，默认 stdio\n' +
   '  --env-file <path>                        启动前按 key=value 语义加载 .env\n' +
   '  --binary-path <path>                     直接使用本地二进制，跳过下载\n' +
+  '  --release-repository <owner/repo>        覆盖 GitHub Release 仓库，默认官方仓库\n' +
+  '  --release-tag <tag>                      覆盖 GitHub Release tag，默认随版本推导\n' +
   '  --help                                   显示帮助\n' +
   '  --version                                输出版本\n\n' +
   '环境变量兼容:\n' +
   '  TRANSPORT -> MCP_TRANSPORT\n' +
   '  PORT -> MCP_SERVER_PORT\n' +
   '  TENCENTCLOUD_SECRET_ID / KEY 仍可直接复用\n' +
-  '  POSTGRES_MCP_BINARY_PATH 可指定本地二进制路径';
+  '  POSTGRES_MCP_BINARY_PATH 可指定本地二进制路径\n' +
+  '  POSTGRES_MCP_RELEASE_REPOSITORY 可改为 owner/repo\n' +
+  '  POSTGRES_MCP_RELEASE_TAG 可覆盖默认 tag';
 
 main().catch((error) => {
   console.error(`[${PACKAGE_NAME}] ${error.message}`);
@@ -61,6 +66,8 @@ function parseArgs(argv) {
     transport: undefined,
     envFile: undefined,
     binaryPath: undefined,
+    releaseRepository: undefined,
+    releaseTag: undefined,
     help: false,
     version: false,
   };
@@ -76,6 +83,12 @@ function parseArgs(argv) {
         break;
       case '--binary-path':
         options.binaryPath = requireValue(argv, ++i, '--binary-path');
+        break;
+      case '--release-repository':
+        options.releaseRepository = requireValue(argv, ++i, '--release-repository');
+        break;
+      case '--release-tag':
+        options.releaseTag = requireValue(argv, ++i, '--release-tag');
         break;
       case '--help':
       case '-h':
@@ -161,19 +174,20 @@ async function resolveBinaryPath(options) {
     return resolved;
   }
 
+  const releaseSource = resolveReleaseSource(options);
   const cacheDir = process.env.POSTGRES_MCP_CACHE_DIR ? path.resolve(process.env.POSTGRES_MCP_CACHE_DIR) : DEFAULT_CACHE_DIR;
   const binaryPath = path.join(cacheDir, binaryFileName());
   if (await pathExists(binaryPath)) {
     return binaryPath;
   }
 
-  await downloadBinary(binaryPath, cacheDir);
+  await downloadBinary(binaryPath, cacheDir, releaseSource);
   return binaryPath;
 }
 
-async function downloadBinary(binaryPath, cacheDir) {
+async function downloadBinary(binaryPath, cacheDir, releaseSource) {
   await fsp.mkdir(cacheDir, { recursive: true });
-  const checksumUrl = releaseAssetUrl(CHECKSUM_FILE);
+  const checksumUrl = releaseAssetUrl(CHECKSUM_FILE, releaseSource);
   const checksums = await downloadText(checksumUrl);
   const assetName = releaseAssetName();
   const expectedChecksum = parseChecksum(checksums, assetName);
@@ -181,7 +195,7 @@ async function downloadBinary(binaryPath, cacheDir) {
     throw new Error(`checksum entry not found for ${assetName}`);
   }
 
-  const compressed = await downloadBuffer(releaseAssetUrl(assetName));
+  const compressed = await downloadBuffer(releaseAssetUrl(assetName, releaseSource));
   const actualChecksum = sha256(compressed);
   if (actualChecksum !== expectedChecksum) {
     throw new Error(`checksum mismatch for ${assetName}`);
@@ -202,8 +216,25 @@ async function downloadBinary(binaryPath, cacheDir) {
   });
 }
 
-function releaseAssetUrl(fileName) {
-  return `https://github.com/${REPOSITORY}/releases/download/${RELEASE_TAG}/${fileName}`;
+function resolveReleaseSource(options) {
+  const repository = (options.releaseRepository || process.env.POSTGRES_MCP_RELEASE_REPOSITORY || DEFAULT_REPOSITORY).trim();
+  const tag = (options.releaseTag || process.env.POSTGRES_MCP_RELEASE_TAG || DEFAULT_RELEASE_TAG).trim();
+  const parts = repository.split('/').filter(Boolean);
+  if (parts.length !== 2 || !parts.every((part) => /^[A-Za-z0-9._-]+$/.test(part))) {
+    throw new Error(`invalid release repository: ${repository}; expected owner/repo`);
+  }
+  if (!tag) {
+    throw new Error('release tag cannot be empty');
+  }
+  return {
+    owner: parts[0],
+    repo: parts[1],
+    tag,
+  };
+}
+
+function releaseAssetUrl(fileName, releaseSource) {
+  return `https://github.com/${encodeURIComponent(releaseSource.owner)}/${encodeURIComponent(releaseSource.repo)}/releases/download/${encodeURIComponent(releaseSource.tag)}/${encodeURIComponent(fileName)}`;
 }
 
 function releaseAssetName() {
