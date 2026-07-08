@@ -399,14 +399,6 @@ No matter which deployment method you choose, requests use the **per-request cre
 
 ---
 
-## Companion skills
-
-This PostgreSQL MCP module also provides companion WorkBuddy skills for **PG inspection**, **slow query diagnosis**, and **ops troubleshooting**.
-
-See [`./skills/README.md`](./skills/README.md) for packaging, release assets, and installation details.
-
----
-
 ## 5. Related Documents
 
 If you need more information during deployment, see the following links:
