@@ -55,7 +55,7 @@ func main() {
 	initReq.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
 	initReq.Params.ClientInfo = mcp.Implementation{
 		Name:    "pg-mcp-smoke-client",
-		Version: "1.0.0",
+		Version: "1.0.3",
 	}
 	initReq.Params.Capabilities = mcp.ClientCapabilities{}
 

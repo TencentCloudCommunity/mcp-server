@@ -1,6 +1,6 @@
 {
   "name": "postgres-mcp-server",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "TencentDB for PostgreSQL MCP Server launcher for npx",
   "license": "Apache-2.0",
   "bin": {
