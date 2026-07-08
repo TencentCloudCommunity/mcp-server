@@ -1,19 +1,89 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
-	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
-	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
-	postgres "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/postgres/v20170312"
 	"log"
-	"os"
+	"net/http"
+	"time"
+
+	"github.com/mark3labs/mcp-go/server"
+	"postgres_server/config"
+	"postgres_server/security"
+	"postgres_server/tools"
 )
 
 func main() {
+	config.Init()
+	startedAt := time.Now().UTC()
+
+	authMode := security.MCPAuthModeFromEnv()
+	transportCfg := transportConfigFromEnv()
+	if err := transportCfg.Validate(authMode); err != nil {
+		log.Fatal(err)
+	}
+
+	supportsHTTP := transportCfg.UsesHTTP()
+	adminEnabled := supportsHTTP && authMode == security.AuthModeIssuedToken && security.AdminAPITokenFromEnv() != ""
+	exchangeCfg := security.TencentCloudTokenExchangeConfigFromEnv(authMode)
+	exchangeEnabled := supportsHTTP && exchangeCfg.Enabled
+	needsTokenStore := authMode == security.AuthModeIssuedToken || adminEnabled || exchangeEnabled
+
+	var (
+		sqliteStore        *security.SQLiteTokenStore
+		tokenStore         security.TokenStore
+		tokenIssuer        *security.TokenIssuer
+		issuerCfg          security.TokenIssuerConfig
+		credentialCipher   *security.CredentialCipher
+		credentialProvider security.CredentialProvider
+		tokenExchange      *security.TencentCloudTokenExchangeService
+		err                error
+	)
+
+	if needsTokenStore {
+		issuerCfg = security.TokenIssuerConfigFromEnv()
+		sqliteStore, err = security.NewSQLiteTokenStoreFromEnv()
+		if err != nil {
+			log.Fatalf("init token store failed: %v", err)
+		}
+		tokenStore = sqliteStore
+		tokenIssuer = security.NewTokenIssuer(sqliteStore, issuerCfg)
+	}
+
+	switch authMode {
+	case security.AuthModeIssuedToken:
+		credentialCipher, err = security.NewCredentialCipherFromEnv()
+		if err != nil {
+			log.Fatal(err)
+		}
+		credentialProvider, err = security.NewTokenBoundCredentialProvider(sqliteStore, credentialCipher)
+		if err != nil {
+			log.Fatal(err)
+		}
+	case security.AuthModeRequestCredential:
+		credentialProvider = security.NewRequestHeaderCredentialProvider()
+	default:
+		credentialProvider, err = security.NewStaticCredentialProviderFromEnv()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if exchangeEnabled {
+		if credentialCipher == nil {
+			credentialCipher, err = security.NewCredentialCipherFromEnv()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		tokenExchange, err = security.NewTencentCloudTokenExchangeService(tokenIssuer, sqliteStore, credentialCipher, exchangeCfg)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	guard := security.NewGuard()
 	mcpServerName := "mcp-server-postgres"
 	mcpsvr := server.NewMCPServer(
 		"腾讯云 Postgres MCP",
@@ -21,454 +91,158 @@ func main() {
 		server.WithResourceCapabilities(true, true),
 		server.WithLogging(),
 	)
-	credential := common.NewCredential(
-		os.Getenv("TENCENTCLOUD_SECRET_ID"),
-		os.Getenv("TENCENTCLOUD_SECRET_KEY"),
-	)
 
-	postgresDescribeDBInstanceSSLConfig := mcp.NewTool(
-		"postgres-DescribeDBInstanceSSLConfig",
-		mcp.WithDescription(`查询实例SSL配置`),
-		mcp.WithString(
-			"region",
-			mcp.Required(),
-			mcp.Description("地域"),
-		),
-		mcp.WithString(
-			"DBInstanceId",
-			mcp.Description("实例ID，形如postgres-6bwgamo3"),
-		),
-	)
-	mcpsvr.AddTool(postgresDescribeDBInstanceSSLConfig, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		region_ := "ap-guangzhou"
-		arguments := request.GetArguments()
-		if nil != arguments["region"] {
-			region_ = arguments["region"].(string)
-		}
-		delete(arguments, "region")
-		cpf := profile.NewClientProfile()
-		cpf.Debug = true
-		client, _ := postgres.NewClient(credential, region_, cpf)
-		req := postgres.NewDescribeDBInstanceSSLConfigRequest()
-		if nil != arguments {
-			jsonstr, _ := json.Marshal(arguments)
-			req.FromJsonString(string(jsonstr))
-		}
-		rsp, err := client.DescribeDBInstanceSSLConfig(req)
+	toolCount := 0
+	if config.IsEnabled("instance") {
+		tools.RegisterInstanceTools(mcpsvr, credentialProvider, guard)
+		toolCount += 15
+	}
+	if config.IsEnabled("account") {
+		tools.RegisterAccountTools(mcpsvr, credentialProvider, guard)
+		toolCount += 6
+	}
+	if config.IsEnabled("database") {
+		tools.RegisterDatabaseTools(mcpsvr, credentialProvider, guard)
+		toolCount += 4
+	}
+	if config.IsEnabled("parameter") {
+		tools.RegisterParameterTools(mcpsvr, credentialProvider, guard)
+		toolCount += 5
+	}
+	if config.IsEnabled("backup") {
+		tools.RegisterBackupTools(mcpsvr, credentialProvider, guard)
+		toolCount += 8
+	}
+	if config.IsEnabled("monitoring") {
+		tools.RegisterMonitoringTools(mcpsvr, credentialProvider, guard)
+		toolCount += 3
+	}
+	if config.IsEnabled("network") {
+		tools.RegisterNetworkTools(mcpsvr, credentialProvider, guard)
+		toolCount += 4
+	}
+	if config.IsEnabled("readonly") {
+		tools.RegisterReadonlyTools(mcpsvr, credentialProvider, guard)
+		toolCount += 2
+	}
+	tools.RegisterSSLTools(mcpsvr, credentialProvider, guard)
+	toolCount += 1
+	log.Printf("Total tools registered: %d", toolCount)
+
+	if !supportsHTTP {
+		stdioCtxFunc, err := buildStdioContextFunc(authMode)
 		if err != nil {
-			return mcp.NewToolResultText(fmt.Sprintf("%s", err.Error())), nil
+			log.Fatal(err)
 		}
-		return mcp.NewToolResultText(fmt.Sprintf("%s", rsp.ToJsonString())), nil
+		logTransportStartup(transportCfg, authMode, false, false)
+		if err := server.ServeStdio(mcpsvr, server.WithStdioContextFunc(stdioCtxFunc)); err != nil {
+			log.Fatalf("stdio server error: %v", err)
+		}
+		return
+	}
+
+	authenticator, err := security.NewMCPAuthenticator(authMode, tokenStore, issuerCfg.Pepper)
+	if err != nil {
+		log.Fatalf("init auth failed: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	security.RegisterHealthRoutes(mux, security.HealthStatus{
+		Service:   mcpServerName,
+		Version:   "1.0.0",
+		StartedAt: startedAt,
 	})
+	if adminEnabled {
+		security.RegisterAdminRoutes(mux, tokenIssuer, tokenStore)
+	}
+	if tokenExchange != nil {
+		security.RegisterTokenExchangeRoutes(mux, tokenExchange, security.TokenExchangeBootstrapConfig{
+			MCPServerName: mcpServerName,
+			ServerURL:     transportCfg.ServerURL(),
+		})
+	}
 
-	postgresDescribeDBInstanceAttribute := mcp.NewTool(
-		"postgres-DescribeDBInstanceAttribute",
-		mcp.WithDescription(`查询实例详情`),
-		mcp.WithString(
-			"region",
-			mcp.Required(),
-			mcp.Description("地域"),
-		),
-		mcp.WithString(
-			"DBInstanceId",
-			mcp.Description("实例ID"),
-		),
-	)
-	mcpsvr.AddTool(postgresDescribeDBInstanceAttribute, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		region_ := "ap-guangzhou"
-		arguments := request.GetArguments()
-		if nil != arguments["region"] {
-			region_ = arguments["region"].(string)
-		}
-		delete(arguments, "region")
-		cpf := profile.NewClientProfile()
-		cpf.Debug = true
-		client, _ := postgres.NewClient(credential, region_, cpf)
-		req := postgres.NewDescribeDBInstanceAttributeRequest()
-		if nil != arguments {
-			jsonstr, _ := json.Marshal(arguments)
-			req.FromJsonString(string(jsonstr))
-		}
-		rsp, err := client.DescribeDBInstanceAttribute(req)
-		if err != nil {
-			return mcp.NewToolResultText(fmt.Sprintf("%s", err.Error())), nil
-		}
-		return mcp.NewToolResultText(fmt.Sprintf("%s", rsp.ToJsonString())), nil
-	})
+	switch transportCfg.Mode {
+	case transportModeSSE:
+		sseServer := server.NewSSEServer(mcpsvr,
+			server.WithSSEEndpoint(transportCfg.SSEEndpoint),
+			server.WithMessageEndpoint(transportCfg.MessageEndpoint),
+			server.WithAppendQueryToMessageEndpoint(),
+		)
+		mux.Handle("/", security.WrapMCPAuth(authenticator, sseServer))
+	default:
+		transportServer := server.NewStreamableHTTPServer(mcpsvr,
+			server.WithEndpointPath(transportCfg.HTTPEndpoint),
+			server.WithStateLess(transportCfg.StatelessHTTP),
+		)
+		mux.Handle(transportCfg.HTTPEndpoint, security.WrapMCPAuth(authenticator, transportServer))
+	}
 
-	postgresUpgradeDBInstanceKernelVersion := mcp.NewTool(
-		"postgres-UpgradeDBInstanceKernelVersion",
-		mcp.WithDescription(`升级实例内核版本号`),
-		mcp.WithString(
-			"region",
-			mcp.Required(),
-			mcp.Description("地域"),
-		),
-		mcp.WithString(
-			"DBInstanceId",
-			mcp.Description("实例ID。"),
-		),
-		mcp.WithString(
-			"TargetDBKernelVersion",
-			mcp.Description("升级的目标内核版本号。可以通过接口[DescribeDBVersions](https://cloud.tencent.com/document/api/409/89018)的返回字段AvailableUpgradeTarget获取。"),
-		),
-		mcp.WithNumber(
-			"SwitchTag",
-			mcp.Description("指定实例升级内核版本号完成后的切换时间。可选值:"),
-		),
-		mcp.WithString(
-			"SwitchStartTime",
-			mcp.Description("切换开始时间，时间格式：HH:MM:SS，例如：01:00:00。当SwitchTag为0或2时，该参数失效。"),
-		),
-		mcp.WithString(
-			"SwitchEndTime",
-			mcp.Description("切换截止时间，时间格式：HH:MM:SS，例如：01:30:00。当SwitchTag为0或2时，该参数失效。SwitchStartTime和SwitchEndTime时间窗口不能小于30分钟。"),
-		),
-		mcp.WithBoolean(
-			"DryRun",
-			mcp.Description("是否对本次升级实例内核版本号操作执行预检查。"),
-		),
-	)
-	mcpsvr.AddTool(postgresUpgradeDBInstanceKernelVersion, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		region_ := "ap-guangzhou"
-		arguments := request.GetArguments()
-		if nil != arguments["region"] {
-			region_ = arguments["region"].(string)
-		}
-		delete(arguments, "region")
-		cpf := profile.NewClientProfile()
-		cpf.Debug = true
-		client, _ := postgres.NewClient(credential, region_, cpf)
-		req := postgres.NewUpgradeDBInstanceKernelVersionRequest()
-		if nil != arguments {
-			jsonstr, _ := json.Marshal(arguments)
-			req.FromJsonString(string(jsonstr))
-		}
-		rsp, err := client.UpgradeDBInstanceKernelVersion(req)
-		if err != nil {
-			return mcp.NewToolResultText(fmt.Sprintf("%s", err.Error())), nil
-		}
-		return mcp.NewToolResultText(fmt.Sprintf("%s", rsp.ToJsonString())), nil
-	})
+	httpServer := &http.Server{
+		Addr:              transportCfg.ListenAddr(),
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       2 * time.Minute,
+	}
 
-	postgresDescribeAccounts := mcp.NewTool(
-		"postgres-DescribeAccounts",
-		mcp.WithDescription(`查询实例的数据库账号列表`),
-		mcp.WithString(
-			"region",
-			mcp.Required(),
-			mcp.Description("地域"),
-		),
-		mcp.WithString(
-			"DBInstanceId",
-			mcp.Description("实例ID，形如postgres-6fego161"),
-		),
-		mcp.WithNumber(
-			"Limit",
-			mcp.Description("分页返回，每页最大返回数目，默认20，取值范围为1-100"),
-		),
-		mcp.WithNumber(
-			"Offset",
-			mcp.Description("数据偏移量，从0开始。"),
-		),
-		mcp.WithString(
-			"OrderBy",
-			mcp.Description("返回数据按照创建时间或者用户名排序。取值支持createTime、name、updateTime。createTime-按照创建时间排序；name-按照用户名排序; updateTime-按照更新时间排序。"),
-		),
-		mcp.WithString(
-			"OrderByType",
-			mcp.Description("返回结果是升序还是降序。取值只能为desc或者asc。desc-降序；asc-升序"),
-		),
-	)
-	mcpsvr.AddTool(postgresDescribeAccounts, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		region_ := "ap-guangzhou"
-		arguments := request.GetArguments()
-		if nil != arguments["region"] {
-			region_ = arguments["region"].(string)
-		}
-		delete(arguments, "region")
-		cpf := profile.NewClientProfile()
-		cpf.Debug = true
-		client, _ := postgres.NewClient(credential, region_, cpf)
-		req := postgres.NewDescribeAccountsRequest()
-		if nil != arguments {
-			jsonstr, _ := json.Marshal(arguments)
-			req.FromJsonString(string(jsonstr))
-		}
-		rsp, err := client.DescribeAccounts(req)
-		if err != nil {
-			return mcp.NewToolResultText(fmt.Sprintf("%s", err.Error())), nil
-		}
-		return mcp.NewToolResultText(fmt.Sprintf("%s", rsp.ToJsonString())), nil
-	})
-
-	postgresDescribeDatabases := mcp.NewTool(
-		"postgres-DescribeDatabases",
-		mcp.WithDescription(`查询实例的数据库列表`),
-		mcp.WithString(
-			"region",
-			mcp.Required(),
-			mcp.Description("地域"),
-		),
-		mcp.WithString(
-			"DBInstanceId",
-			mcp.Description("实例ID"),
-		),
-		mcp.WithArray(
-			"Filters",
-			mcp.Description("按照一个或者多个过滤条件进行查询，目前支持的过滤条件有：database-name：按照数据库名称过滤，类型为string。此处使用模糊匹配搜索符合条件的数据库。"),
-		),
-		mcp.WithNumber(
-			"Offset",
-			mcp.Description("数据偏移量，从0开始。	"),
-		),
-		mcp.WithNumber(
-			"Limit",
-			mcp.Description("单次显示数量"),
-		),
-	)
-	mcpsvr.AddTool(postgresDescribeDatabases, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		region_ := "ap-guangzhou"
-		arguments := request.GetArguments()
-		if nil != arguments["region"] {
-			region_ = arguments["region"].(string)
-		}
-		delete(arguments, "region")
-		cpf := profile.NewClientProfile()
-		cpf.Debug = true
-		client, _ := postgres.NewClient(credential, region_, cpf)
-		req := postgres.NewDescribeDatabasesRequest()
-		if nil != arguments {
-			jsonstr, _ := json.Marshal(arguments)
-			req.FromJsonString(string(jsonstr))
-		}
-		rsp, err := client.DescribeDatabases(req)
-		if err != nil {
-			return mcp.NewToolResultText(fmt.Sprintf("%s", err.Error())), nil
-		}
-		return mcp.NewToolResultText(fmt.Sprintf("%s", rsp.ToJsonString())), nil
-	})
-
-	postgresDescribeDBInstanceParameters := mcp.NewTool(
-		"postgres-DescribeDBInstanceParameters",
-		mcp.WithDescription(`查询实例参数`),
-		mcp.WithString(
-			"region",
-			mcp.Required(),
-			mcp.Description("地域"),
-		),
-		mcp.WithString(
-			"DBInstanceId",
-			mcp.Description("实例ID"),
-		),
-		mcp.WithString(
-			"ParamName",
-			mcp.Description("查询指定参数详情。ParamName为空或不传，默认返回全部参数列表"),
-		),
-	)
-	mcpsvr.AddTool(postgresDescribeDBInstanceParameters, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		region_ := "ap-guangzhou"
-		arguments := request.GetArguments()
-		if nil != arguments["region"] {
-			region_ = arguments["region"].(string)
-		}
-		delete(arguments, "region")
-		cpf := profile.NewClientProfile()
-		cpf.Debug = true
-		client, _ := postgres.NewClient(credential, region_, cpf)
-		req := postgres.NewDescribeDBInstanceParametersRequest()
-		if nil != arguments {
-			jsonstr, _ := json.Marshal(arguments)
-			req.FromJsonString(string(jsonstr))
-		}
-		rsp, err := client.DescribeDBInstanceParameters(req)
-		if err != nil {
-			return mcp.NewToolResultText(fmt.Sprintf("%s", err.Error())), nil
-		}
-		return mcp.NewToolResultText(fmt.Sprintf("%s", rsp.ToJsonString())), nil
-	})
-
-	postgresDescribeParameterTemplates := mcp.NewTool(
-		"postgres-DescribeParameterTemplates",
-		mcp.WithDescription(`查询参数模板列表`),
-		mcp.WithString(
-			"region",
-			mcp.Required(),
-			mcp.Description("地域"),
-		),
-		mcp.WithArray(
-			"Filters",
-			mcp.Description("过滤条件，目前支持的过滤条件有：TemplateName, TemplateId，DBMajorVersion，DBEngine"),
-		),
-		mcp.WithNumber(
-			"Limit",
-			mcp.Description("每页显示数量，[0，100]，默认 20"),
-		),
-		mcp.WithNumber(
-			"Offset",
-			mcp.Description("数据偏移量"),
-		),
-		mcp.WithString(
-			"OrderBy",
-			mcp.Description("排序指标，枚举值，支持：CreateTime，TemplateName，DBMajorVersion"),
-		),
-		mcp.WithString(
-			"OrderByType",
-			mcp.Description("排序方式，枚举值，支持：asc（升序） ，desc（降序）"),
-		),
-	)
-	mcpsvr.AddTool(postgresDescribeParameterTemplates, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		region_ := "ap-guangzhou"
-		arguments := request.GetArguments()
-		if nil != arguments["region"] {
-			region_ = arguments["region"].(string)
-		}
-		delete(arguments, "region")
-		cpf := profile.NewClientProfile()
-		cpf.Debug = true
-		client, _ := postgres.NewClient(credential, region_, cpf)
-		req := postgres.NewDescribeParameterTemplatesRequest()
-		if nil != arguments {
-			jsonstr, _ := json.Marshal(arguments)
-			req.FromJsonString(string(jsonstr))
-		}
-		rsp, err := client.DescribeParameterTemplates(req)
-		if err != nil {
-			return mcp.NewToolResultText(fmt.Sprintf("%s", err.Error())), nil
-		}
-		return mcp.NewToolResultText(fmt.Sprintf("%s", rsp.ToJsonString())), nil
-	})
-
-	postgresDescribeParameterTemplateAttributes := mcp.NewTool(
-		"postgres-DescribeParameterTemplateAttributes",
-		mcp.WithDescription(`查询参数模板详情`),
-		mcp.WithString(
-			"region",
-			mcp.Required(),
-			mcp.Description("地域"),
-		),
-		mcp.WithString(
-			"TemplateId",
-			mcp.Description("参数模板ID"),
-		),
-	)
-	mcpsvr.AddTool(postgresDescribeParameterTemplateAttributes, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		region_ := "ap-guangzhou"
-		arguments := request.GetArguments()
-		if nil != arguments["region"] {
-			region_ = arguments["region"].(string)
-		}
-		delete(arguments, "region")
-		cpf := profile.NewClientProfile()
-		cpf.Debug = true
-		client, _ := postgres.NewClient(credential, region_, cpf)
-		req := postgres.NewDescribeParameterTemplateAttributesRequest()
-		if nil != arguments {
-			jsonstr, _ := json.Marshal(arguments)
-			req.FromJsonString(string(jsonstr))
-		}
-		rsp, err := client.DescribeParameterTemplateAttributes(req)
-		if err != nil {
-			return mcp.NewToolResultText(fmt.Sprintf("%s", err.Error())), nil
-		}
-		return mcp.NewToolResultText(fmt.Sprintf("%s", rsp.ToJsonString())), nil
-	})
-
-	postgresCreateDatabase := mcp.NewTool(
-		"postgres-CreateDatabase",
-		mcp.WithDescription(`创建数据库`),
-		mcp.WithString(
-			"region",
-			mcp.Required(),
-			mcp.Description("地域"),
-		),
-		mcp.WithString(
-			"DBInstanceId",
-			mcp.Description("实例ID，形如postgres-6fego161"),
-		),
-		mcp.WithString(
-			"DatabaseName",
-			mcp.Description("创建的数据库名"),
-		),
-		mcp.WithString(
-			"DatabaseOwner",
-			mcp.Description("数据库的所有者"),
-		),
-		mcp.WithString(
-			"Encoding",
-			mcp.Description("数据库的字符编码"),
-		),
-		mcp.WithString(
-			"Collate",
-			mcp.Description("数据库的排序规则"),
-		),
-		mcp.WithString(
-			"Ctype",
-			mcp.Description("数据库的字符分类"),
-		),
-	)
-	mcpsvr.AddTool(postgresCreateDatabase, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		region_ := "ap-guangzhou"
-		arguments := request.GetArguments()
-		if nil != arguments["region"] {
-			region_ = arguments["region"].(string)
-		}
-		delete(arguments, "region")
-		cpf := profile.NewClientProfile()
-		cpf.Debug = true
-		client, _ := postgres.NewClient(credential, region_, cpf)
-		req := postgres.NewCreateDatabaseRequest()
-		if nil != arguments {
-			jsonstr, _ := json.Marshal(arguments)
-			req.FromJsonString(string(jsonstr))
-		}
-		rsp, err := client.CreateDatabase(req)
-		if err != nil {
-			return mcp.NewToolResultText(fmt.Sprintf("%s", err.Error())), nil
-		}
-		return mcp.NewToolResultText(fmt.Sprintf("%s", rsp.ToJsonString())), nil
-	})
-
-	sseEndpoint := getEnv("MCP_SERVER_SSE_ENDPOINT", "/sse")
-	messageEndpoint := getEnv("MCP_SERVER_MESSAGE_ENDPOINT", "/message")
-	ssePort := getEnv("MCP_SERVER_SSE_PORT", "9000")
-
-	sseServer := server.NewSSEServer(mcpsvr,
-		server.WithSSEEndpoint(sseEndpoint),
-		server.WithMessageEndpoint(messageEndpoint),
-		server.WithAppendQueryToMessageEndpoint())
-
-	log.Printf("SSE server listening on :" + ssePort)
-	serverURL := fmt.Sprintf("http://127.0.0.1:%s%s", ssePort, sseEndpoint)
-	outputMCPServerConfig(mcpServerName, serverURL)
-	if err := sseServer.Start(":" + ssePort); err != nil {
+	logTransportStartup(transportCfg, authMode, adminEnabled, tokenExchange != nil)
+	outputMCPServerConfig(mcpServerName, transportCfg, authMode)
+	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("Server error: %v", err)
 	}
 }
 
-func outputMCPServerConfig(mcpServerName, serverURL string) {
-	config := map[string]interface{}{
-		"mcpServers": map[string]interface{}{
-			mcpServerName: map[string]interface{}{
-				"url":  serverURL,
-				"type": "sse",
-			},
+func outputMCPServerConfig(mcpServerName string, transportCfg transportConfig, authMode security.AuthMode) {
+	if !transportCfg.UsesHTTP() {
+		return
+	}
+	serverConfig := map[string]any{
+		"url":  transportCfg.ServerURL(),
+		"type": transportCfg.ClientType(),
+	}
+	if headers, ok := clientHeaderPlaceholders(authMode); ok {
+		serverConfig["headers"] = headers
+	}
+
+	configPayload := map[string]any{
+		"mcpServers": map[string]any{
+			mcpServerName: serverConfig,
 		},
 	}
 
-	jsonOutput, _ := json.MarshalIndent(config, "", " ")
+	jsonOutput, _ := json.MarshalIndent(configPayload, "", " ")
 	fmt.Println("=== MCP Server Configuration ===")
 	fmt.Println("Copy the following configuration to your MCP client:")
 	fmt.Println()
 	fmt.Println(string(jsonOutput))
 	fmt.Println()
+	switch authMode {
+	case security.AuthModeSharedToken:
+		fmt.Println("Authentication is enabled for this server.")
+		fmt.Printf("Replace <MCP_API_TOKEN> with the shared token, or use header %s if your client does not support Bearer config.\n", security.APIAuthFallbackHeader)
+		fmt.Println()
+	case security.AuthModeIssuedToken:
+		fmt.Println("Issued-token auth is enabled for this server.")
+		fmt.Println("Use POST /auth/token-exchange/tencentcloud to exchange TencentCloud credentials for a local MCP access token, or let an admin create one via POST /admin/tokens.")
+		fmt.Println()
+	case security.AuthModeRequestCredential:
+		fmt.Println("Request-credential auth is enabled for this server.")
+		fmt.Printf("Every MCP request must carry %s and %s headers. %s is optional for STS temporary credentials.\n", security.RequestSecretIDHeader, security.RequestSecretKeyHeader, security.RequestSessionTokenHeader)
+		fmt.Println("Use HTTPS in production and never place secret material in URL query parameters.")
+		fmt.Println()
+	}
 	fmt.Println("The server is now ready to accept connections.")
 }
 
-func getEnv(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
+func clientHeaderPlaceholders(authMode security.AuthMode) (map[string]string, bool) {
+	switch authMode {
+	case security.AuthModeSharedToken:
+		return map[string]string{"Authorization": "Bearer <MCP_API_TOKEN>"}, true
+	case security.AuthModeIssuedToken:
+		return map[string]string{"Authorization": "Bearer <MCP_ACCESS_TOKEN>"}, true
+	case security.AuthModeRequestCredential:
+		return security.RequestCredentialPlaceholderHeaders(), true
+	default:
+		return nil, false
 	}
-
-	return fallback
 }

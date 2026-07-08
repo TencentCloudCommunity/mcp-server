@@ -1,0 +1,6 @@
+.env
+.bin/
+.DS_Store
+coverage.out
+scripts/*.log
+scripts/observe_state/
