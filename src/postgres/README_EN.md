@@ -1,126 +1,156 @@
 # TencentDB for PostgreSQL MCP Server
 
-> This MCP Server wraps the cloud APIs into unified MCP tools, providing: **48 tools** covering 9 major modules including instances, accounts, databases, parameters, backups, monitoring, network, read-only instances, and SSL configuration; **multiple deployment forms**: `npx` one-click local launch, local `stdio` command direct connect, self-hosted `streamable-http` service, self-hosted `sse` compatibility mode, and **Tencent Cloud SCF Web Function** deployment; **per-request credential mode**: clients pass their own Tencent Cloud `SecretId` / `SecretKey` via headers on each request, and the server does not store user keys long-term.
+> The official MCP Server for TencentDB for PostgreSQL wraps cloud API capabilities such as instances, accounts, databases, parameters, backups, monitoring, networking, read-only instances, and SSL into unified MCP tools that can be used directly by Cursor, Claude Desktop, WorkBuddy, and any other MCP-compatible client.
+>
+> It supports one-command local startup via `npx`, and also supports `stdio`, `streamable-http`, and `sse` transports for local hosts, remote hosts, or Tencent Cloud SCF. With the **per-request credential mode**, the server does not need to store user `SecretId` / `SecretKey` values for a long time.
 
-**Product Link**: [TencentDB for PostgreSQL](https://cloud.tencent.com/product/postgres)
-
----
-
-## 1. Tool List
-
-Below is the list of all **48** tools grouped by module. All tools accept `region` (region) as the first required parameter, and internally call the corresponding Tencent Cloud API according to `region`.
-
-### 1. Instances (15)
-
-| No. | Tool Name | Description |
-|---|---|---|
-| 1 | `DescribeDBInstances` | Query instance list |
-| 2 | `DescribeDBInstanceAttribute` | Query instance details |
-| 3 | `CreateInstances` | Create instance (charge confirmation) |
-| 4 | `ModifyDBInstanceName` | Modify instance name |
-| 5 | `ModifyDBInstanceSpec` | Change instance specification (scale up/down, charge confirmation) |
-| 6 | `RestartDBInstance` | Restart instance |
-| 7 | `IsolateDBInstances` | Isolate instance (business confirmation) |
-| 8 | `DisIsolateDBInstances` | Unisolate instance |
-| 9 | `UpgradeDBInstanceKernelVersion` | Upgrade instance kernel version |
-| 10 | `DescribeTasks` | Query async task status |
-| 11 | `DescribeClasses` | Query available specifications |
-| 12 | `DescribeDBVersions` | Query available database versions |
-| 13 | `DescribeRegions` | Query available sale regions |
-| 14 | `DescribeZones` | Query available sale zones |
-| 15 | `DescribeProductConfig` | Query sale specification configurations |
-
-### 2. Accounts (6)
-
-| No. | Tool Name | Description |
-|---|---|---|
-| 16 | `DescribeAccounts` | Query database account list of an instance |
-| 17 | `DescribeAccountPrivileges` | Query database account privileges |
-| 18 | `CreateAccount` | Create database account |
-| 19 | `DeleteAccount` | Delete database account |
-| 20 | `ModifyAccountPrivileges` | Modify account privileges (grant/revoke/change account type) |
-| 21 | `ResetAccountPassword` | Reset account password |
-
-### 3. Databases (4)
-
-| No. | Tool Name | Description |
-|---|---|---|
-| 22 | `DescribeDatabases` | Query database list of an instance |
-| 23 | `DescribeDatabaseObjects` | Query database object list |
-| 24 | `CreateDatabase` | Create database |
-| 25 | `ModifyDatabaseOwner` | Modify database owner |
-
-### 4. Parameters (5)
-
-| No. | Tool Name | Description |
-|---|---|---|
-| 26 | `DescribeDBInstanceParameters` | Query instance parameters |
-| 27 | `DescribeParameterTemplates` | Query parameter template list |
-| 28 | `DescribeParameterTemplateAttributes` | Query parameter template details |
-| 29 | `DescribeParamsEvent` | Query parameter modification events |
-| 30 | `ModifyDBInstanceParameters` | Modify instance parameters |
-
-### 5. Backups (8)
-
-| No. | Tool Name | Description |
-|---|---|---|
-| 31 | `DescribeBackupOverview` | Query backup overview |
-| 32 | `DescribeBaseBackups` | Query base backup list |
-| 33 | `DescribeLogBackups` | Query log backup list |
-| 34 | `DescribeAvailableRecoveryTime` | Query available recovery time range |
-| 35 | `DescribeCloneDBInstanceSpec` | Query purchasable specifications for cloning instances |
-| 36 | `DescribeBackupDownloadURL` | Get backup download URL |
-| 37 | `CreateBaseBackup` | Create base backup |
-| 38 | `CloneDBInstance` | Clone instance (charge confirmation) |
-
-### 6. Monitoring (3)
-
-| No. | Tool Name | Description |
-|---|---|---|
-| 39 | `DescribeSlowQueryList` | Query slow query list |
-| 40 | `DescribeSlowQueryAnalysis` | Slow query analysis |
-| 41 | `DescribeDBErrlogs` | Query error logs |
-
-### 7. Network (4)
-
-| No. | Tool Name | Description |
-|---|---|---|
-| 42 | `OpenDBExtranetAccess` | Enable instance public network access |
-| 43 | `CloseDBExtranetAccess` | Disable instance public network access |
-| 44 | `DescribeDBInstanceSecurityGroups` | Query instance security groups |
-| 45 | `ModifyDBInstanceSecurityGroups` | Modify instance security groups |
-
-### 8. SSL (1)
-
-| No. | Tool Name | Description |
-|---|---|---|
-| 46 | `DescribeDBInstanceSSLConfig` | Query instance SSL configuration |
-
-### 9. Read-only Instances (2)
-
-| No. | Tool Name | Description |
-|---|---|---|
-| 47 | `DescribeReadOnlyGroups` | Query read-only group list |
-| 48 | `CreateReadOnlyDBInstance` | Create read-only instance (charge confirmation) |
-
-> **Tiered Protection**: Write tools are classified by risk as `LevelFee` (charge confirmation), `LevelBusiness` (business confirmation), `LevelAudit` (audit level), `LevelCritical` (high-risk, requires explicit double confirmation `confirm=true`).
+**Product Link**: [TencentDB for PostgreSQL](https://cloud.tencent.com/product/postgres)  
+**中文版本**: [`README.md`](./README.md)
 
 ---
 
-## 2. Quick Start (Deployment Methods)
+## 1. Before You Deploy
 
-Below are 4 deployment methods listed in **descending order of recommendation**. Please choose as needed and review the prerequisites for each method:
+Before choosing a deployment method, make sure the following information is ready.
 
-- **Method 1: Tencent Cloud SCF self-hosting (recommended for cloud deployment)** —— Suitable when you want to run the service on Tencent Cloud and expose it via HTTPS; you need to create the function, upload the zip package, and configure environment variables in your own SCF account.
-- **Method 2: Self-hosted streamable-http service** —— Need to fetch only the `src/postgres` directory (`git clone --depth=1 --filter=blob:none --sparse https://github.com/TencentCloudCommunity/mcp-server.git` → `cd mcp-server` → `git sparse-checkout set src/postgres` → `cd src/postgres`), and prepare **Go 1.25+** for local compilation and runtime.
-- **Method 3: Local stdio** —— Need to fetch only the `src/postgres` directory (same as above) and prepare **Go 1.25+**, suitable for local Cursor / Claude Desktop / WorkBuddy clients.
-- **Method 4: npx one-click launch** —— Only requires **Node.js 18+** installed locally, no need to clone the repository, just one command line.
+### 1.1 Typical Scenarios
 
-### Method 1: Tencent Cloud SCF self-hosting (recommended for cloud deployment)
+- **You want to deploy on Tencent Cloud and expose it to your team over HTTPS**: choose Method 1 (Tencent Cloud SCF self-hosting)
+- **You want full control over the network, host, and runtime environment**: choose Method 2 (self-hosted `streamable-http` service)
+- **You want to connect a local client directly to the source-based service**: choose Method 3 (local `stdio`)
+- **You just want the fastest local trial experience**: choose Method 4 (`npx` one-click launch)
 
-> Suitable when you want to run the MCP server on Tencent Cloud and share it with your team through HTTPS / Function URL. The repository provides SCF packaging scripts, startup scripts, and environment templates, and you can complete the deployment in your own Tencent Cloud account.
+> If you need cloud hosting, complete the SCF deployment in your own Tencent Cloud account and connect clients with your own Function URL.
 
-#### 1.1 Fetch only the `src/postgres` directory and build the SCF package
+### 1.2 Required Permissions
+
+When calling MCP tools after deployment, you need a Tencent Cloud account with PostgreSQL API access permissions. We recommend creating a dedicated CAM sub-account for MCP clients and granting only the minimum required permissions.
+
+- **Credential page**: <https://console.cloud.tencent.com/cam/capi>
+- Keep your `SecretId` and `SecretKey` properly stored for subsequent OpenAPI calls
+- The tools provided by this MCP Server require region codes, so confirm the target instance region in advance
+- Region reference: <https://cloud.tencent.com/document/product/1596/77930>
+
+### 1.3 Required Resources
+
+| Resource | Required | Description |
+|---|---|---|
+| `SecretId` / `SecretKey` | Yes | Identity credentials for calling OpenAPI |
+| Region code (for example `ap-guangzhou`) | Yes | Used as the `region` parameter for all tools |
+| Instance ID | No | Only needed for instance-specific operations |
+
+---
+
+## 2. MCP Capabilities
+
+This server exposes **48 tools** across 9 major groups: instances, accounts, databases, parameters, backups, monitoring, networking, SSL, and read-only instances.
+
+### 2.1 Instance Management (15)
+
+| Tool Name | Description |
+|---|---|
+| `DescribeDBInstances` | Query the instance list |
+| `DescribeDBInstanceAttribute` | Query instance details |
+| `CreateInstances` | Create an instance (charge confirmation required) |
+| `ModifyDBInstanceName` | Modify the instance name |
+| `ModifyDBInstanceSpec` | Change instance specifications (scale up/down, charge confirmation required) |
+| `RestartDBInstance` | Restart an instance |
+| `IsolateDBInstances` | Isolate an instance (business confirmation required) |
+| `DisIsolateDBInstances` | Recover an isolated instance |
+| `UpgradeDBInstanceKernelVersion` | Upgrade the instance kernel version |
+| `DescribeTasks` | Query async task status |
+| `DescribeClasses` | Query available instance classes |
+| `DescribeDBVersions` | Query available database versions |
+| `DescribeRegions` | Query sale regions |
+| `DescribeZones` | Query availability zones |
+| `DescribeProductConfig` | Query product configuration |
+
+### 2.2 Account Management (6)
+
+| Tool Name | Description |
+|---|---|
+| `DescribeAccounts` | Query database accounts for an instance |
+| `DescribeAccountPrivileges` | Query account privileges |
+| `CreateAccount` | Create a database account |
+| `DeleteAccount` | Delete a database account |
+| `ModifyAccountPrivileges` | Modify account privileges (grant / revoke / account type) |
+| `ResetAccountPassword` | Reset an account password |
+
+### 2.3 Database Management (4)
+
+| Tool Name | Description |
+|---|---|
+| `DescribeDatabases` | Query databases in an instance |
+| `DescribeDatabaseObjects` | Query database objects |
+| `CreateDatabase` | Create a database |
+| `ModifyDatabaseOwner` | Modify the database owner |
+
+### 2.4 Parameter Management (5)
+
+| Tool Name | Description |
+|---|---|
+| `DescribeDBInstanceParameters` | Query instance parameters |
+| `DescribeParameterTemplates` | Query parameter template list |
+| `DescribeParameterTemplateAttributes` | Query parameter template details |
+| `DescribeParamsEvent` | Query parameter change events |
+| `ModifyDBInstanceParameters` | Modify instance parameters |
+
+### 2.5 Backup and Recovery (8)
+
+| Tool Name | Description |
+|---|---|
+| `DescribeBackupOverview` | Query backup overview |
+| `DescribeBaseBackups` | Query base backup list |
+| `DescribeLogBackups` | Query log backup list |
+| `DescribeAvailableRecoveryTime` | Query available recovery time range |
+| `DescribeCloneDBInstanceSpec` | Query available specs for clone instances |
+| `DescribeBackupDownloadURL` | Get backup download URLs |
+| `CreateBaseBackup` | Create a base backup |
+| `CloneDBInstance` | Clone an instance (charge confirmation required) |
+
+### 2.6 Monitoring and Diagnostics (3)
+
+| Tool Name | Description |
+|---|---|
+| `DescribeSlowQueryList` | Query slow query list |
+| `DescribeSlowQueryAnalysis` | Analyze slow queries |
+| `DescribeDBErrlogs` | Query error logs |
+
+### 2.7 Network Management (4)
+
+| Tool Name | Description |
+|---|---|
+| `OpenDBExtranetAccess` | Enable public access |
+| `CloseDBExtranetAccess` | Disable public access |
+| `DescribeDBInstanceSecurityGroups` | Query security groups |
+| `ModifyDBInstanceSecurityGroups` | Modify security groups |
+
+### 2.8 SSL Configuration (1)
+
+| Tool Name | Description |
+|---|---|
+| `DescribeDBInstanceSSLConfig` | Query SSL configuration |
+
+### 2.9 Read-Only Instances (2)
+
+| Tool Name | Description |
+|---|---|
+| `DescribeReadOnlyGroups` | Query read-only groups |
+| `CreateReadOnlyDBInstance` | Create a read-only instance (charge confirmation required) |
+
+> Write operations are still constrained by permission scope, `READ_ONLY` configuration, and confirmation mechanisms. Start with read-only access first, then enable write capabilities only when needed.
+
+---
+
+## 3. Choose a Deployment Method
+
+Below are 4 deployment methods listed in **descending order of recommendation**. Each method is organized as prerequisites → deployment steps → client configuration.
+
+### 3.1 Method 1: Tencent Cloud SCF Self-Hosting (Recommended for Cloud Deployment)
+
+> Suitable when you want to run the service on Tencent Cloud and expose it to your team through HTTPS or a Function URL. This repository already provides SCF packaging scripts, startup scripts, and environment templates, but **you still need to finish deployment in your own Tencent Cloud account**.
+
+#### Step 1: Fetch `src/postgres` and build the SCF package
 
 ```bash
 git clone --depth=1 --filter=blob:none --sparse https://github.com/TencentCloudCommunity/mcp-server.git
@@ -132,21 +162,22 @@ cd src/postgres
 
 A zip package ready for SCF upload will be generated in the `dist/` directory.
 
-#### 1.2 Create a Web Function in the SCF console
+#### Step 2: Create a Web Function in the SCF console
 
-Open [Tencent Cloud SCF Console](https://console.cloud.tencent.com/scf) and create the function with:
+Open the [SCF Console](https://console.cloud.tencent.com/scf/list?rid=16&ns=default) and create the function with the following settings:
 
+- Creation mode: choose **Create from scratch**
 - Function type: **Web Function**
-- Runtime: **Go standard runtime**
+- Runtime: **Go standard runtime (Go 1)**
 - Code upload method: **Upload local zip**
+- Environment variables: follow Step 4, or configure them after function creation
+- Other options: enable public Function URL if public access is needed
 
-After uploading the zip, enable the public Function URL.
+#### Step 3: Startup command
 
-#### 1.3 Start command
+The zip package already includes `scf_bootstrap`, so in most cases you can use the built-in startup file directly.
 
-The zip package already includes `scf_bootstrap`, so in most cases the built-in startup file can be used directly.
-
-If the console requires a manual start command, use the same content as `deploy/scf/scf.console.startup.sh`:
+If the console asks for a manual startup command, use the same content as `deploy/scf/scf.console.startup.sh`:
 
 ```bash
 #!/bin/bash
@@ -169,14 +200,15 @@ export TOKEN_EXCHANGE_ENABLED="${TOKEN_EXCHANGE_ENABLED:-false}"
 exec /var/user/postgres-server
 ```
 
-#### 1.4 Environment variables
+#### Step 4: Environment variables
+
+Minimum recommended configuration:
 
 ```env
 MCP_TRANSPORT=streamable-http
 MCP_AUTH_MODE=request-credential
 MCP_REQUEST_VALIDATE_IDENTITY=true
 MCP_REQUEST_CREDENTIAL_SCOPES=pg.read
-TOKEN_EXCHANGE_ENABLED=false
 READ_ONLY=true
 MCP_SERVER_BIND_HOST=0.0.0.0
 MCP_SERVER_PORT=9000
@@ -184,20 +216,13 @@ MCP_SERVER_HTTP_ENDPOINT=/mcp
 MCP_STREAMABLE_HTTP_STATELESS=true
 ```
 
-Recommended additions:
+Recommended addition:
 
 ```env
 MCP_SERVER_PUBLIC_URL=https://your-function-url/mcp
 ```
 
-#### 1.5 Client configuration example
-
-The service uses the **per-request credential mode**, requiring your Tencent Cloud credentials to be attached in request headers (do not put keys in URL or query parameters):
-
-- `X-TencentCloud-Secret-Id`
-- `X-TencentCloud-Secret-Key`
-
-> See [§3. Credential Acquisition Tutorial](#3-credential-acquisition-tutorial) for how to obtain credentials.
+#### Step 5: Client configuration
 
 ```json
 {
@@ -214,26 +239,27 @@ The service uses the **per-request credential mode**, requiring your Tencent Clo
 }
 ```
 
-> ⚠️ The client `url` must point to the **complete MCP endpoint** (including `/mcp` suffix), not the function root URL.
+> The client `url` must point to the **full MCP endpoint** (including the `/mcp` suffix), not the function root URL.
 
-#### 1.6 Quick verification
+#### Step 6: Quick verification
 
 ```bash
 curl -i https://your-function-url/healthz
 ```
 
-A normal `200 OK` response means your self-hosted SCF deployment is online and ready for MCP clients.
+After you get `200 OK`, connect the client to `https://your-function-url/mcp`.
 
+See [`SCF_DEPLOY.md`](./SCF_DEPLOY.md) for the full SCF deployment guide.
 
 ---
 
-### Method 2: Self-hosted streamable-http Service
+### 3.2 Method 2: Self-Hosted `streamable-http` Service
 
-Suitable for deployment to your own cloud servers, intranet servers, shared with the team via domain.
+Suitable for deployment on your own cloud hosts or intranet servers and sharing through a domain name.
 
-> **Prerequisites**: **Go 1.25+** is installed on your local machine or cloud server, with internet access (to call Tencent Cloud OpenAPI).
+> **Prerequisites**: **Go 1.25+** is installed on the local machine or host, and internet access is available to call Tencent Cloud OpenAPI.
 
-#### 2.1 Fetch only the `src/postgres` directory
+#### Step 1: Fetch `src/postgres`
 
 ```bash
 git clone --depth=1 --filter=blob:none --sparse https://github.com/TencentCloudCommunity/mcp-server.git
@@ -242,9 +268,9 @@ git sparse-checkout set src/postgres
 cd src/postgres
 ```
 
-> All subsequent commands need to be executed in the `src/postgres/` directory.
+> All commands below should be executed in the `src/postgres/` directory.
 
-#### 2.2 Prepare Configuration
+#### Step 2: Prepare configuration
 
 ```bash
 cp .env.example .env
@@ -264,13 +290,13 @@ MCP_STREAMABLE_HTTP_STATELESS=true
 READ_ONLY=true
 ```
 
-#### 2.3 Start Service
+#### Step 3: Start the service
 
 ```bash
 ./scripts/run_server.sh
 ```
 
-#### 2.4 MCP Client Configuration
+#### Step 4: Client configuration
 
 ```json
 {
@@ -287,17 +313,17 @@ READ_ONLY=true
 }
 ```
 
-> Recommended to put it behind HTTPS / reverse proxy; add IP whitelist / zero-trust access control before exposing to public network.
+> Put it behind HTTPS or a reverse proxy when possible, and add IP allowlists or zero-trust controls before public exposure.
 
 ---
 
-### Method 3: Local stdio (Recommended for Local Clients)
+### 3.3 Method 3: Local `stdio` (Recommended for Local Clients)
 
-Suitable for direct command connection mode of local MCP clients like Cursor, Claude Desktop, WorkBuddy.
+Suitable for local MCP clients such as Cursor, Claude Desktop, and WorkBuddy.
 
-> **Prerequisites**: **Go 1.25+** is installed on your local machine, with internet access (to call Tencent Cloud OpenAPI).
+> **Prerequisites**: **Go 1.25+** is installed locally and the machine has internet access for Tencent Cloud OpenAPI.
 
-#### 3.1 Fetch only the `src/postgres` directory
+#### Step 1: Fetch `src/postgres`
 
 ```bash
 git clone --depth=1 --filter=blob:none --sparse https://github.com/TencentCloudCommunity/mcp-server.git
@@ -306,9 +332,7 @@ git sparse-checkout set src/postgres
 cd src/postgres
 ```
 
-> All subsequent commands need to be executed in the `src/postgres/` directory.
-
-#### 3.2 Prepare Configuration
+#### Step 2: Prepare configuration
 
 ```bash
 cp .env.example .env
@@ -324,13 +348,15 @@ MCP_REQUEST_SECRET_KEY=YourSecretKey
 READ_ONLY=true
 ```
 
-#### 3.3 Start
+Make sure Tencent Cloud credentials are configured in the local `.env` file before use.
+
+#### Step 3: Start
 
 ```bash
 ./scripts/run_stdio.sh
 ```
 
-#### 3.4 MCP Client Configuration
+#### Step 4: Client configuration
 
 ```json
 {
@@ -346,31 +372,31 @@ READ_ONLY=true
 }
 ```
 
-> Prefer using an **absolute path** for `command`. Many MCP clients do not spawn `stdio` processes with the repository root as their working directory; if you keep `./scripts/run_stdio.sh`, you may hit `spawn ./scripts/run_stdio.sh ENOENT`.
+> Prefer an **absolute path** for `command`. Many MCP clients do not start the `stdio` process from the repository root, so using `./scripts/run_stdio.sh` may lead to `spawn ./scripts/run_stdio.sh ENOENT`.
 >
-> If your client supports `cwd`, you can also set `cwd` to `src/postgres` and then keep the relative path.
+> If your client supports `cwd`, you can also set `cwd` to `src/postgres` and keep a relative path.
 >
-> `stdio` mode is only suitable for local trusted environments, not suitable for exposing as a remote shared service.
+> `stdio` mode is only suitable for local trusted environments and should not be exposed as a shared remote service.
 
 ---
 
-### Method 4: npx One-Click Launch (Simplest Local Experience)
+### 3.4 Method 4: `npx` One-Click Launch (Fastest Local Experience)
 
-> **Prerequisites**: **Node.js 18+** is installed on your local machine (including `npx`). No need to clone the Go repository, the npm package will automatically download pre-compiled binaries from GitHub Release according to the platform.
->
-> Check if it is installed:
->
-> ```bash
-> node -v   # Expected v18.x or higher
-> ```
+> **Prerequisites**: **Node.js 18+** is installed locally, including `npx`. No Go repository clone is required. The npm package automatically downloads prebuilt binaries from GitHub Release based on the current platform.
 
-#### 4.1 Command Line Direct Startup
+Check whether Node.js is installed:
+
+```bash
+node -v   # Expected v18.x or later
+```
+
+#### Step 1: Start directly from the command line
 
 ```bash
 npx -y postgres-mcp-server@latest
 ```
 
-#### 4.2 MCP Client Configuration
+#### Step 2: Client configuration
 
 ```json
 {
@@ -388,80 +414,60 @@ npx -y postgres-mcp-server@latest
 }
 ```
 
-> The `npx` launcher will download pre-compiled Go binaries from GitHub Release according to the platform, network connection is required for first run.
+> The `npx` launcher downloads a prebuilt Go binary from GitHub Release based on the platform, so network access is required the first time.
+
+Optional: use `npx` to start self-hosted `sse` mode:
+
+```bash
+npx -y postgres-mcp-server@latest --transport sse --env-file .env
+```
+
+Notes:
+
+- The `npx` launcher downloads prebuilt Go binaries from GitHub Release
+- The default transport is `stdio`
+- `TRANSPORT -> MCP_TRANSPORT` and `PORT -> MCP_SERVER_PORT` are supported for compatibility
+- You can still use `TENCENTCLOUD_SECRET_ID` / `TENCENTCLOUD_SECRET_KEY` directly
+- For local debugging or to skip downloading, set `POSTGRES_MCP_BINARY_PATH=/path/to/postgres-server`
+- To test against your own GitHub fork first, add `--release-repository <owner/repo>` and optionally `--release-tag <tag>`
 
 ---
 
-## 3. Credential Acquisition Tutorial
+## 4. Authentication and Security Configuration
 
-### Get SecretId / SecretKey
+No matter which deployment method you choose, requests use the **per-request credential mode**. That means Tencent Cloud credentials are carried with each request, instead of being stored persistently on the server.
 
-1. Log in to the [Tencent Cloud Console](https://console.cloud.tencent.com/);
-2. Go to the **Access Management → API Key Management** page;
-3. In the **API Key** tab, create or view existing **SecretId** and **SecretKey**.
+### 4.1 How Credentials Are Passed
 
-> **Generation URL**: <https://console.cloud.tencent.com/cam/capi>
+- **HTTP / `streamable-http` / `sse` mode**: pass credentials through `X-TencentCloud-Secret-Id` and `X-TencentCloud-Secret-Key` headers
+- **`stdio` mode**: inject credentials through environment variables such as `MCP_REQUEST_SECRET_ID` / `MCP_REQUEST_SECRET_KEY`
 
-⚠️ **Security Recommendations**
+### 4.2 Required Security Recommendations
 
-- **Do not put `SecretId / SecretKey` in URL or query parameters**, only pass via Header or environment variables;
-- **Do not put keys into SCF server-side environment variables**, use per-request credential mode;
-- **Use a least-privilege CAM sub-account**, and avoid reusing root account keys for long periods;
-- **Do not output credential plaintext in logs, traces, or error returns**.
-
-### Recommended Permission Scope
-
-Create a separate CAM sub-account or role for the MCP client, granting minimum permissions based on usage scenarios:
-
-| Usage Scenario | Recommended Policy |
-|---|---|
-| Read-only inspection | `QcloudPGReadOnlyAccess` |
-| Daily O&M (including write) | Custom policy, limited to specific `Action` list |
-| Temporary troubleshooting | Least-privilege CAM sub-account, revoke access after use |
+- **Do not put `SecretId / SecretKey` in URLs or query parameters**; use headers or environment variables only
+- **Do not store keys in SCF server-side environment variables**; use per-request credentials instead
+- **Use a least-privilege CAM sub-account** whenever possible
+- **Never print plaintext credentials in logs, traces, or error messages**
+- **Production deployments must stay behind HTTPS or a reverse proxy**; do not expose raw HTTP publicly
+- **Start with `READ_ONLY=true`**, and enable write operations only after the flow is confirmed
 
 ---
 
-## 4. Region Mapping
+## 5. Related Documents
 
-When calling this MCP tool, the `region` parameter must be the **region code** (e.g., `ap-guangzhou`), not the Chinese region name.
+If you need more information during deployment, see the following links:
 
-Example: Guangzhou region
+- [PostgreSQL MCP Server project homepage](https://github.com/TencentCloudCommunity/mcp-server)
+- [API Key (CAM) console](https://console.cloud.tencent.com/cam/capi)
+- [SCF Console](https://console.cloud.tencent.com/scf)
+- [TencentDB for PostgreSQL product documentation](https://cloud.tencent.com/document/product/409)
+- [TencentDB for PostgreSQL API overview](https://cloud.tencent.com/document/product/409/16761)
+- [Region and availability zone mapping](https://cloud.tencent.com/document/product/1596/77930)
+- [Full SCF deployment guide](./SCF_DEPLOY.md)
+- [Chinese README](./README.md)
 
-| Chinese Name | Region Code |
-|---|---|
-| Guangzhou | `ap-guangzhou` |
-| Shanghai | `ap-shanghai` |
-| Beijing | `ap-beijing` |
-| Nanjing | `ap-nanjing` |
-| Shenzhen | `ap-shenzhen` |
-| Chengdu | `ap-chengdu` |
-| Hong Kong | `ap-hongkong` |
-| Singapore | `ap-singapore` |
+---
 
-> See [Region and Availability Zone Mapping Documentation](https://cloud.tencent.com/document/product/1596/77930) for the complete region list. If you don't know which region your instance is in, you can use the read-only tool `DescribeDBInstances` without passing `region`, or first call `DescribeRegions` to query.
-
-
-## 5. API Usage Reference
-
-
-
- TencentDB for PostgreSQL API Overview  <https://cloud.tencent.com/document/product/409/16761> 
-
-
-
-## 6. Security Recommendations
-
-- **Production environment must be behind HTTPS / reverse proxy**, do not expose HTTP to public network;
-- **Do not put `SecretId / SecretKey` in URL or query parameters**, all via Header or env;
-- **Do not output credential plaintext in logs, traces, or error returns**;
-- **Use a least-privilege CAM sub-account**, and avoid reusing root account keys for long periods;
-- **Keep `READ_ONLY=true` as the starting point**, open write operations as needed after confirming the process;
-- **Add IP whitelist, VPN, or zero-trust access control** before exposing to public;
-- **Stateless environments like SCF / API Gateway only recommend `streamable-http`** + `MCP_STREAMABLE_HTTP_STATELESS=true`.
-
-
-
-## 7. License
+## 6. License
 
 This project is open-sourced under the **Apache-2.0** license.
-
