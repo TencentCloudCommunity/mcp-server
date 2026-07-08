@@ -2,7 +2,7 @@
 
 > 腾讯云 PostgreSQL（TencentDB for PostgreSQL）官方 MCP Server，把云 API 背后的实例、账号、数据库、参数、备份、监控、网络、只读实例与 SSL 等能力统一封装为 MCP 工具，可被 Cursor、Claude Desktop、WorkBuddy 等任何兼容 MCP 的客户端直接调用。
 >
-> 支持 `npx` 一键本地拉起，也支持 `stdio` / `streamable-http` / `sse` 三种 transport 部署到本地主机、远程主机或腾讯云 SCF，并通过 **per-request 凭证模式** 避免在服务端长期保存用户的 `SecretId` / `SecretKey`。
+> 支持 `stdio` / `streamable-http` / `sse` 三种 transport 部署到本地主机、远程主机或腾讯云 SCF，并通过 **per-request 凭证模式** 避免在服务端长期保存用户的 `SecretId` / `SecretKey`。
 
 **产品链接**：[云数据库 TencentDB for PostgreSQL](https://cloud.tencent.com/product/postgres)  
 **英文版**：[`README_EN.md`](./README_EN.md)
@@ -18,7 +18,6 @@
 - **想部署到腾讯云并通过 HTTPS 暴露给团队使用**：选方式一（腾讯云 SCF 自助托管）
 - **想自己控制网络、主机与运行环境**：选方式二（自建 `streamable-http` 服务）
 - **想在本地客户端里直接接入源码服务**：选方式三（本地 `stdio`）
-- **只想本机快速拉起体验**：选方式四（`npx` 一键拉起）
 
 > 如需云上托管，请按方式一在自己的腾讯云账号下完成 SCF 部署，并使用您自己的函数 URL 接入客户端。
 
@@ -380,59 +379,6 @@ READ_ONLY=true
 
 ---
 
-### 3.4 方式四：`npx` 一键拉起（最简本地体验）
-
-> **前置条件**：本机已安装 **Node.js 18+**（含 `npx`）。无需克隆 Go 仓库，npm 包会按平台自动从 GitHub Release 下载预编译二进制。
-
-检查是否已安装：
-
-```bash
-node -v   # 期望 v18.x 或更高
-```
-
-#### 步骤一：命令行直接启动
-
-```bash
-npx -y postgres-mcp-server@latest
-```
-
-#### 步骤二：客户端配置
-
-```json
-{
-  "mcpServers": {
-    "mcp-server-postgres": {
-      "command": "npx",
-      "args": ["-y", "postgres-mcp-server@latest"],
-      "env": {
-        "TRANSPORT": "stdio",
-        "TENCENTCLOUD_SECRET_ID": "<您的 SecretId>",
-        "TENCENTCLOUD_SECRET_KEY": "<您的 SecretKey>"
-      }
-    }
-  }
-}
-```
-
-> `npx` 启动器会按平台从 GitHub Release 下载预编译 Go 二进制，首次运行需要联网。
-
-可选：用 `npx` 拉起自建 `sse`：
-
-```bash
-npx -y postgres-mcp-server@latest --transport sse --env-file .env
-```
-
-说明：
-
-- `npx` 启动器会按平台下载 GitHub Release 中的预编译 Go 二进制
-- 默认 `transport` 是 `stdio`
-- 兼容 `TRANSPORT -> MCP_TRANSPORT`、`PORT -> MCP_SERVER_PORT`
-- 腾讯云凭证仍可直接使用 `TENCENTCLOUD_SECRET_ID` / `TENCENTCLOUD_SECRET_KEY`
-- 如需本地调试或跳过下载，可设置 `POSTGRES_MCP_BINARY_PATH=/path/to/postgres-server`
-- 如需先在自己的 GitHub fork 上试跑，可加 `--release-repository <owner/repo>`，必要时再配合 `--release-tag <tag>`
-
----
-
 ## 4. 鉴权与安全配置
 
 无论选择哪种部署方式，调用时都使用 **per-request 凭证模式**，即每次请求通过 Header 携带腾讯云凭证，服务端不长期保存您的密钥。
@@ -450,6 +396,14 @@ npx -y postgres-mcp-server@latest --transport sse --env-file .env
 - **不要在日志、trace、错误回显中输出凭据明文**
 - **生产环境必须放在 HTTPS / 反向代理之后**，不要裸跑 HTTP 到公网
 - **保持 `READ_ONLY=true` 起步**，确认流程后再按需开放写操作
+
+---
+
+## Companion skills
+
+这个 PostgreSQL MCP 模块同时提供面向 WorkBuddy 的 companion skills，用于 **PG 巡检**、**慢 SQL 诊断** 和 **运维排障**。
+
+Skill 的源码、打包方式、release 资产和安装说明集中维护在 [`./skills/README.md`](./skills/README.md)。
 
 ---
 

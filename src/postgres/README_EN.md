@@ -2,7 +2,7 @@
 
 > The official MCP Server for TencentDB for PostgreSQL wraps cloud API capabilities such as instances, accounts, databases, parameters, backups, monitoring, networking, read-only instances, and SSL into unified MCP tools that can be used directly by Cursor, Claude Desktop, WorkBuddy, and any other MCP-compatible client.
 >
-> It supports one-command local startup via `npx`, and also supports `stdio`, `streamable-http`, and `sse` transports for local hosts, remote hosts, or Tencent Cloud SCF. With the **per-request credential mode**, the server does not need to store user `SecretId` / `SecretKey` values for a long time.
+> It supports `stdio`, `streamable-http`, and `sse` transports for local hosts, remote hosts, or Tencent Cloud SCF. With the **per-request credential mode**, the server does not need to store user `SecretId` / `SecretKey` values for a long time.
 
 **Product Link**: [TencentDB for PostgreSQL](https://cloud.tencent.com/product/postgres)  
 **中文版本**: [`README.md`](./README.md)
@@ -18,7 +18,6 @@ Before choosing a deployment method, make sure the following information is read
 - **You want to deploy on Tencent Cloud and expose it to your team over HTTPS**: choose Method 1 (Tencent Cloud SCF self-hosting)
 - **You want full control over the network, host, and runtime environment**: choose Method 2 (self-hosted `streamable-http` service)
 - **You want to connect a local client directly to the source-based service**: choose Method 3 (local `stdio`)
-- **You just want the fastest local trial experience**: choose Method 4 (`npx` one-click launch)
 
 > If you need cloud hosting, complete the SCF deployment in your own Tencent Cloud account and connect clients with your own Function URL.
 
@@ -144,7 +143,7 @@ This server exposes **48 tools** across 9 major groups: instances, accounts, dat
 
 ## 3. Choose a Deployment Method
 
-Below are 4 deployment methods listed in **descending order of recommendation**. Each method is organized as prerequisites → deployment steps → client configuration.
+Below are 3 deployment methods listed in **descending order of recommendation**. Each method is organized as prerequisites → deployment steps → client configuration.
 
 ### 3.1 Method 1: Tencent Cloud SCF Self-Hosting (Recommended for Cloud Deployment)
 
@@ -380,59 +379,6 @@ Make sure Tencent Cloud credentials are configured in the local `.env` file befo
 
 ---
 
-### 3.4 Method 4: `npx` One-Click Launch (Fastest Local Experience)
-
-> **Prerequisites**: **Node.js 18+** is installed locally, including `npx`. No Go repository clone is required. The npm package automatically downloads prebuilt binaries from GitHub Release based on the current platform.
-
-Check whether Node.js is installed:
-
-```bash
-node -v   # Expected v18.x or later
-```
-
-#### Step 1: Start directly from the command line
-
-```bash
-npx -y postgres-mcp-server@latest
-```
-
-#### Step 2: Client configuration
-
-```json
-{
-  "mcpServers": {
-    "mcp-server-postgres": {
-      "command": "npx",
-      "args": ["-y", "postgres-mcp-server@latest"],
-      "env": {
-        "TRANSPORT": "stdio",
-        "TENCENTCLOUD_SECRET_ID": "<Your SecretId>",
-        "TENCENTCLOUD_SECRET_KEY": "<Your SecretKey>"
-      }
-    }
-  }
-}
-```
-
-> The `npx` launcher downloads a prebuilt Go binary from GitHub Release based on the platform, so network access is required the first time.
-
-Optional: use `npx` to start self-hosted `sse` mode:
-
-```bash
-npx -y postgres-mcp-server@latest --transport sse --env-file .env
-```
-
-Notes:
-
-- The `npx` launcher downloads prebuilt Go binaries from GitHub Release
-- The default transport is `stdio`
-- `TRANSPORT -> MCP_TRANSPORT` and `PORT -> MCP_SERVER_PORT` are supported for compatibility
-- You can still use `TENCENTCLOUD_SECRET_ID` / `TENCENTCLOUD_SECRET_KEY` directly
-- For local debugging or to skip downloading, set `POSTGRES_MCP_BINARY_PATH=/path/to/postgres-server`
-- To test against your own GitHub fork first, add `--release-repository <owner/repo>` and optionally `--release-tag <tag>`
-
----
-
 ## 4. Authentication and Security Configuration
 
 No matter which deployment method you choose, requests use the **per-request credential mode**. That means Tencent Cloud credentials are carried with each request, instead of being stored persistently on the server.
@@ -450,6 +396,14 @@ No matter which deployment method you choose, requests use the **per-request cre
 - **Never print plaintext credentials in logs, traces, or error messages**
 - **Production deployments must stay behind HTTPS or a reverse proxy**; do not expose raw HTTP publicly
 - **Start with `READ_ONLY=true`**, and enable write operations only after the flow is confirmed
+
+---
+
+## Companion skills
+
+This PostgreSQL MCP module also provides companion WorkBuddy skills for **PG inspection**, **slow query diagnosis**, and **ops troubleshooting**.
+
+See [`./skills/README.md`](./skills/README.md) for packaging, release assets, and installation details.
 
 ---
 
