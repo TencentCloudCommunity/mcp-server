@@ -23,8 +23,7 @@
 - 每次请求都会从请求头读取：
   - `X-TencentCloud-Secret-Id`
   - `X-TencentCloud-Secret-Key`
-  - `X-TencentCloud-Session-Token`（可选）
-- 工具执行时会基于**当前请求**中的凭证重新创建腾讯云 SDK Client。
+  - 工具执行时会基于**当前请求**中的凭证重新创建腾讯云 SDK Client。
 - 代码中未发现“按账号缓存腾讯云 Postgres Client 并跨请求复用”的逻辑。
 
 因此，当前更可能的原因是：

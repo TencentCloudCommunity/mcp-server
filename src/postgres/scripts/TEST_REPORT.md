@@ -16,7 +16,7 @@
 |---|---|
 | **报告时间** | `YYYY-MM-DD HH:mm TZ` |
 | **Server 版本** | `tag / commit / branch` |
-| **测试环境** | `本地 / Docker / CI` 等描述，不写真实实例信息 |
+| **测试环境** | `本地 / CI` 等描述，不写真实实例信息 |
 | **Guard 画像** | `default / dev / test / prod` |
 | **执行命令** | `go build ./...` / `./scripts/run_openapi_param_check.sh` / `./scripts/run_mcp_smoke.sh` / `VERIFY_INSTANCE_ID=... ./scripts/run_verify.sh` |
 

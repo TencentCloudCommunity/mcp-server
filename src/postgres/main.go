@@ -87,7 +87,7 @@ func main() {
 	mcpServerName := "mcp-server-postgres"
 	mcpsvr := server.NewMCPServer(
 		"腾讯云 Postgres MCP",
-		"1.0.0",
+		"1.0.3",
 		server.WithResourceCapabilities(true, true),
 		server.WithLogging(),
 	)
@@ -149,7 +149,7 @@ func main() {
 	mux := http.NewServeMux()
 	security.RegisterHealthRoutes(mux, security.HealthStatus{
 		Service:   mcpServerName,
-		Version:   "1.0.0",
+		Version:   "1.0.3",
 		StartedAt: startedAt,
 	})
 	if adminEnabled {

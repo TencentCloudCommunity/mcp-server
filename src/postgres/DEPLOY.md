@@ -2,7 +2,7 @@
 
 > 当前主分支已经补齐 `stdio / streamable-http / sse` 三种 transport，并继续以 `request-credential` 作为默认鉴权模型。
 
-本文按 **CLS MCP 风格的“方式”组织** 当前项目的部署与接入方式，同时保留 Docker、Compose、远程主机和 SCF 等扩展部署方案。
+本文按 **CLS MCP 风格的“方式”组织** 当前项目的部署与接入方式，同时保留远程主机和 SCF 等扩展部署方案。
 
 ---
 
@@ -12,10 +12,9 @@
 |---|---|---|---|---|
 | 方式零：NPX 启动 | `stdio`（默认）/ `sse`（可选） | 本地 MCP 客户端、零源码分发、本地桌面工具 | **最高** | 新增 npm 分发层，不替换现有脚本与源码部署 |
 | 方式一：推荐本地启动 | `stdio` | 本地 MCP 客户端、个人开发、桌面工具 | **最高** | 最接近本地命令式接入体验 |
-| 方式二：自建服务（推荐） | `streamable-http` | Hosted URL、Docker、Compose、远程主机、SCF | **最高** | 当前主线默认方案 |
+| 方式二：自建服务（推荐） | `streamable-http` | Hosted URL、远程主机、SCF | **最高** | 当前主线默认方案 |
 | 方式三：自建 SSE 模式 | `sse` | 本地调试、自建兼容模式 | 中 | 仅建议本地或自建服务 |
 | 方式四：源码安装 | `stdio / streamable-http / sse` | 自行编译、手工控制运行方式 | 高 | 适合想显式控制二进制和启动命令的人 |
-| Docker / Compose | `streamable-http` | 容器化部署 | 高 | 容器默认固定为 `streamable-http` |
 | SCF Web 函数 | `streamable-http` | Serverless / 函数 URL | 高 | 仅推荐无状态 HTTP 模式 |
 
 ---
@@ -27,11 +26,9 @@
 - **腾讯云凭证**
   - `SecretId`
   - `SecretKey`
-  - 可选：`SessionToken`
 - **运行环境**
   - `npx` 运行：Node.js 18+
   - 本地源码运行：Go 1.25+
-  - 容器运行：Docker / Docker Compose
 - **MCP 客户端**
   - 支持 `stdio`、`streamable-http` 或 `sse` 的 MCP 客户端
 
@@ -74,8 +71,7 @@ npx -y postgres-mcp-server@latest
       "env": {
         "TRANSPORT": "stdio",
         "TENCENTCLOUD_SECRET_ID": "<TENCENTCLOUD_SECRET_ID>",
-        "TENCENTCLOUD_SECRET_KEY": "<TENCENTCLOUD_SECRET_KEY>",
-        "TENCENTCLOUD_SESSION_TOKEN": "<TENCENTCLOUD_SESSION_TOKEN_OPTIONAL>"
+        "TENCENTCLOUD_SECRET_KEY": "<TENCENTCLOUD_SECRET_KEY>"
       }
     }
   }
@@ -111,9 +107,8 @@ cp .env.example .env
 ```env
 MCP_TRANSPORT=stdio
 MCP_AUTH_MODE=request-credential
-MCP_REQUEST_SECRET_ID=你的SecretId
-MCP_REQUEST_SECRET_KEY=你的SecretKey
-MCP_REQUEST_SESSION_TOKEN=
+MCP_REQUEST_SECRET_ID=您的SecretId
+MCP_REQUEST_SECRET_KEY=您的SecretKey
 MCP_REQUEST_VALIDATE_IDENTITY=true
 MCP_REQUEST_CREDENTIAL_SCOPES=pg.read
 READ_ONLY=true
@@ -131,11 +126,10 @@ READ_ONLY=true
 {
   "mcpServers": {
     "mcp-server-postgres": {
-      "command": "./scripts/run_stdio.sh",
+      "command": "/absolute/path/to/mcp-server/src/postgres/scripts/run_stdio.sh",
       "env": {
         "MCP_REQUEST_SECRET_ID": "<TENCENTCLOUD_SECRET_ID>",
-        "MCP_REQUEST_SECRET_KEY": "<TENCENTCLOUD_SECRET_KEY>",
-        "MCP_REQUEST_SESSION_TOKEN": "<TENCENTCLOUD_SESSION_TOKEN_OPTIONAL>"
+        "MCP_REQUEST_SECRET_KEY": "<TENCENTCLOUD_SECRET_KEY>"
       }
     }
   }
@@ -144,6 +138,8 @@ READ_ONLY=true
 
 ### 5. 说明
 
+- 推荐把 `command` 写成**绝对路径**；很多 MCP 客户端启动 `stdio` 时不会把工作目录设到仓库根目录，使用 `./scripts/run_stdio.sh` 容易报 `spawn ./scripts/run_stdio.sh ENOENT`
+- 如果客户端支持 `cwd`，也可以把 `cwd` 显式设为 `src/postgres` 后再使用相对路径
 - `stdio` 不提供 `/healthz`、`/readyz` 这类 HTTP 探针
 - `stdio` 仅适合本地可信环境
 - 当前主线下 **`stdio` 不支持 `issued-token`**
@@ -184,8 +180,7 @@ READ_ONLY=true
       "url": "http://127.0.0.1:9000/mcp",
       "headers": {
         "X-TencentCloud-Secret-Id": "<TENCENTCLOUD_SECRET_ID>",
-        "X-TencentCloud-Secret-Key": "<TENCENTCLOUD_SECRET_KEY>",
-        "X-TencentCloud-Session-Token": "<TENCENTCLOUD_SESSION_TOKEN_OPTIONAL>"
+        "X-TencentCloud-Secret-Key": "<TENCENTCLOUD_SECRET_KEY>"
       }
     }
   }
@@ -196,7 +191,7 @@ READ_ONLY=true
 
 - 团队共享 Hosted URL
 - 需要健康检查、反向代理、HTTPS
-- Docker / Compose / SCF / 远程主机
+- SCF / 远程主机
 
 > **注意：** 客户端里的 `url` 必须填写**完整 MCP 端点**（例如 `http://127.0.0.1:9000/mcp`、`https://mcp.example.com/postgres/mcp`），不要只填域名或根路径。
 
@@ -236,8 +231,7 @@ READ_ONLY=true
       "url": "http://127.0.0.1:9000/sse",
       "headers": {
         "X-TencentCloud-Secret-Id": "<TENCENTCLOUD_SECRET_ID>",
-        "X-TencentCloud-Secret-Key": "<TENCENTCLOUD_SECRET_KEY>",
-        "X-TencentCloud-Session-Token": "<TENCENTCLOUD_SESSION_TOKEN_OPTIONAL>"
+        "X-TencentCloud-Secret-Key": "<TENCENTCLOUD_SECRET_KEY>"
       }
     }
   }
@@ -284,51 +278,13 @@ MCP_TRANSPORT=sse ./.bin/postgres-server
 源码安装和脚本启动的本质区别只是：
 
 - 脚本会自动读取 `.env`、编译并启动
-- 源码安装由你自己控制二进制和环境变量注入方式
-
----
-
-## 八、Docker / Docker Compose
-
-### 1. Docker Compose
-
-```bash
-docker compose up -d --build
-```
-
-当前 `compose.yaml` 已固定：
-
-```yaml
-environment:
-  MCP_TRANSPORT: streamable-http
-```
-
-### 2. Docker 命令
-
-```bash
-docker build -t mcp-server-postgres:latest .
-```
-
-```bash
-docker run --rm -it \
-  --name postgres-mcp \
-  --env-file .env \
-  -e MCP_SERVER_BIND_HOST=0.0.0.0 \
-  -p 127.0.0.1:9000:9000 \
-  mcp-server-postgres:latest
-```
-
-容器镜像默认也固定：
-
-```dockerfile
-ENV MCP_TRANSPORT=streamable-http
-```
+- 源码安装由您自己控制二进制和环境变量注入方式
 
 ---
 
 ## 八、远程主机部署说明
 
-如果你要把它部署到云主机、内网服务器，或通过域名提供给团队使用，建议：
+如果您要把它部署到云主机、内网服务器，或通过域名提供给团队使用，建议：
 
 1. 服务监听：
 
@@ -371,8 +327,8 @@ READ_ONLY=true
 - `stdio` 不适合云函数部署
 - 当前主线默认的 `/mcp` 单端点更适合 Hosted URL + Header 直传凭证
 
-客户端连接时请始终使用完整端点：`https://你的函数URL/mcp`。
-函数根 URL `https://你的函数URL` 返回 `404 page not found` 属于预期，不代表部署失败。
+客户端连接时请始终使用完整端点：`https://您的函数URL/mcp`。
+函数根 URL `https://您的函数URL` 返回 `404 page not found` 属于预期，不代表部署失败。
 
 详见：`SCF_DEPLOY.md`
 

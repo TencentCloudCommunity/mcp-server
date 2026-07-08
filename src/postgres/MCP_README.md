@@ -1,6 +1,6 @@
 # 云数据库 TencentDB for PostgreSQL MCP Server
 
-> 腾讯云 PostgreSQL（TencentDB for PostgreSQL）官方 MCP Server，把云 API 背后的实例、账号、数据库、参数、备份、监控、网络、只读实例与 SSL 等能力，统一封装为 MCP 工具，可被 Cursor、Claude Desktop、WorkBuddy 等任何兼容 MCP 的客户端直接调用。支持 `npx` 一键本地拉起，也支持 `stdio` / `streamable-http` / `sse` 三种 transport 部署到远程主机或 SCF，并通过 per-request 凭证模式避免在服务端长期保存用户的 SecretId / SecretKey。
+> 本 MCP Server 把这些云 API 统一封装为 MCP 工具，配套提供：**48 个工具**，覆盖实例、账号、数据库、参数、备份、监控、网络、只读实例、SSL 配置等 9 大模块；**多种部署形态**：`npx` 一键本地拉起、本地 `stdio` 命令直连、`streamable-http` 自建服务、`sse` 自建兼容模式，以及 **腾讯云 SCF Web 函数**部署；**per-request 凭证模式**：客户端在每次请求时通过 Header 传递自己的腾讯云 `SecretId` / `SecretKey`，服务端不长期保存用户密钥。
 
 **产品链接**：[云数据库 TencentDB for PostgreSQL](https://cloud.tencent.com/product/postgres)
 
@@ -8,7 +8,7 @@
 
 ## 一、工具列表（Tools）
 
-默认注册 **48 个工具**，覆盖 9 大模块：实例、账号、数据库、参数、备份、监控、网络、SSL、只读实例。所有工具均接受 `region`（地域代码）作为第一个必填参数，内部按 `region` 调用对应的腾讯云 API。
+下面按模块分组列出全部 **48** 个工具。所有工具均接受 `region`（地域）作为第一个必填参数，工具内部会按 `region` 调用对应的腾讯云 API。
 
 ### 1. 实例（15）
 
@@ -107,38 +107,76 @@
 
 ---
 
-## 二、特性
+## 二、快速开始（部署方式）
 
-- **多种部署形态**：`npx` 一键本地拉起、本地 `stdio` 命令直连、`streamable-http` 自建服务、`sse` 自建兼容模式、腾讯云 SCF Web 函数
-- **per-request 凭证模式**：客户端在每次请求时通过 Header 传递自己的腾讯云 `SecretId` / `SecretKey`，服务端不长期保存用户密钥
-- **三种 transport 兼容**：`stdio` / `streamable-http` / `sse` 均可启动，源码启动与脚本启动方式一致
-- **npx 分发层（新增）**：默认拉起 `stdio`，从 GitHub Release 拉取预编译 Go 二进制，**不影响现有源码 / 自建服务 / 脚本启动方式**
-- **最小权限起步**：默认 `pg.read` + `READ_ONLY=true`，可按需开放写操作
+下面按 **推荐度从高到低** 列出 4 种部署方式。请按需选择，并先看清各方式的前置条件：
 
----
+- **方式一：腾讯云 SCF 自助托管（推荐云上部署）** —— 适合希望通过腾讯云托管并对外提供 HTTPS 访问的场景；需要您自行在 SCF 控制台完成函数创建、zip 上传和环境变量配置。
+- **方式二：自建 streamable-http 服务** —— 需先按需拉取 `src/postgres` 目录（`git clone --depth=1 --filter=blob:none --sparse https://github.com/TencentCloudCommunity/mcp-server.git` → `cd mcp-server` → `git sparse-checkout set src/postgres` → `cd src/postgres`），并准备 **Go 1.25+** 用于本地编译运行。
+- **方式三：本地 stdio** —— 需先按需拉取 `src/postgres` 目录（同上）并准备 **Go 1.25+**，适合本地 Cursor / Claude Desktop / WorkBuddy 客户端。
+- **方式四：npx 一键拉起** —— 只需本机安装 **Node.js 18+**，无需克隆仓库，命令行一条即可。
 
-## 三、部署方式（按推荐度从高到低）
+### 方式一：腾讯云 SCF 自助托管（推荐云上部署）
 
-| 方式 | transport | 适用场景 | 前置条件 |
-|---|---|---|---|
-| 方式一：腾讯云 SCF 自助托管 | `streamable-http` | 云上自助托管、团队共用 | 控制台上传 zip |
-| 方式二：自建 streamable-http | `streamable-http` | 自建云主机、内网服务器 | Go 1.25+ |
-| 方式三：本地 stdio | `stdio` | Cursor / Claude Desktop / WorkBuddy | Go 1.25+ |
-| 方式四：npx 一键拉起 | `stdio`（默认） | 最简本地体验 | Node.js 18+ |
+> 适合希望运行在腾讯云并通过 HTTPS / 函数 URL 提供给团队共用的场景。仓库已提供 SCF 打包脚本、启动脚本和环境变量模板，您需要在自己的腾讯云账号下完成函数创建与发布。
 
-### 方式一：腾讯云 SCF 自助托管
+#### 1.1 按需拉取 `src/postgres` 目录并构建 SCF 发布包
 
-适合希望运行在腾讯云并通过 HTTPS / 函数 URL 提供给团队共用的场景。仓库已提供 `deploy/scf/` 下的 SCF 部署物料与 `./scripts/build_scf_zip.sh` 打包脚本，但**需要您在自己的腾讯云账号下完成函数创建、zip 上传与发布**。
+```bash
+git clone --depth=1 --filter=blob:none --sparse https://github.com/TencentCloudCommunity/mcp-server.git
+cd mcp-server
+git sparse-checkout set src/postgres
+cd src/postgres
+./scripts/build_scf_zip.sh
+```
 
-详细步骤见：[`SCF_DEPLOY.md`](./SCF_DEPLOY.md)
+默认会在 `dist/` 目录生成可上传到 SCF 的 zip 包。
 
-最小可用配置（直接复制 `deploy/scf/scf.console.env.txt` 即可）：
+#### 1.2 在 SCF 控制台创建 Web 函数
+
+进入 [SCF 云函数控制台](https://console.cloud.tencent.com/scf)，按以下方式创建：
+
+- 函数类型：**Web 函数**
+- 运行环境：**Go 标准运行环境**
+- 代码上传方式：**本地上传 zip**
+
+上传 zip 后，为函数开启公网访问 URL。
+
+#### 1.3 启动命令
+
+zip 包已经内置 `scf_bootstrap`，通常直接使用包内启动文件即可。
+
+如果控制台要求手动填写启动命令，请填与 `deploy/scf/scf.console.startup.sh` 一致的内容：
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+export PG_MCP_RUNTIME="${PG_MCP_RUNTIME:-scf}"
+export PORT="${PORT:-9000}"
+export MCP_TRANSPORT="${MCP_TRANSPORT:-streamable-http}"
+export MCP_SERVER_BIND_HOST="${MCP_SERVER_BIND_HOST:-0.0.0.0}"
+export MCP_SERVER_PORT="${MCP_SERVER_PORT:-${PORT}}"
+export MCP_SERVER_HTTP_ENDPOINT="${MCP_SERVER_HTTP_ENDPOINT:-/mcp}"
+export MCP_STREAMABLE_HTTP_STATELESS="${MCP_STREAMABLE_HTTP_STATELESS:-true}"
+export MCP_AUTH_MODE="${MCP_AUTH_MODE:-request-credential}"
+export MCP_REQUEST_VALIDATE_IDENTITY="${MCP_REQUEST_VALIDATE_IDENTITY:-true}"
+export MCP_REQUEST_CREDENTIAL_SCOPES="${MCP_REQUEST_CREDENTIAL_SCOPES:-pg.read}"
+export MCP_REQUEST_ALLOWED_REGIONS="${MCP_REQUEST_ALLOWED_REGIONS:-}"
+export READ_ONLY="${READ_ONLY:-true}"
+export TOKEN_EXCHANGE_ENABLED="${TOKEN_EXCHANGE_ENABLED:-false}"
+
+exec /var/user/postgres-server
+```
+
+#### 1.4 环境变量配置
 
 ```env
 MCP_TRANSPORT=streamable-http
 MCP_AUTH_MODE=request-credential
 MCP_REQUEST_VALIDATE_IDENTITY=true
 MCP_REQUEST_CREDENTIAL_SCOPES=pg.read
+TOKEN_EXCHANGE_ENABLED=false
 READ_ONLY=true
 MCP_SERVER_BIND_HOST=0.0.0.0
 MCP_SERVER_PORT=9000
@@ -146,17 +184,69 @@ MCP_SERVER_HTTP_ENDPOINT=/mcp
 MCP_STREAMABLE_HTTP_STATELESS=true
 ```
 
-客户端 `url` 必须填写**完整 MCP 端点** `https://您的函数URL/mcp`；函数根 URL `https://您的函数URL` 返回 `404 page not found` 属于预期。
+推荐补充：
+
+```env
+MCP_SERVER_PUBLIC_URL=https://您的函数URL/mcp
+```
+
+#### 1.5 客户端配置示例
+
+服务采用 **per-request 凭证模式**，调用时需要在 Header 中按请求附带自己的腾讯云凭证（不要把密钥写进 URL 或 query 参数）：
+
+- `X-TencentCloud-Secret-Id`
+- `X-TencentCloud-Secret-Key`
+
+> 凭证获取方法见 [§三、密钥获取教程](#三密钥获取教程)。
+
+```json
+{
+  "mcpServers": {
+    "mcp-server-postgres": {
+      "type": "streamable-http",
+      "url": "https://您的函数URL/mcp",
+      "headers": {
+        "X-TencentCloud-Secret-Id": "<您的 SecretId>",
+        "X-TencentCloud-Secret-Key": "<您的 SecretKey>"
+      }
+    }
+  }
+}
+```
+
+> ⚠️ 客户端 `url` 必须指向**完整 MCP 端点**（含 `/mcp` 后缀），不要使用函数根 URL。
+
+#### 1.6 快速验证
+
+```bash
+curl -i https://您的函数URL/healthz
+```
+
+正常返回 `200 OK` 即可按上面 JSON 配置客户端，开始调用 48 个 MCP 工具。
+
+
+---
 
 ### 方式二：自建 streamable-http 服务
 
 适合部署到自有云主机、内网服务器，通过域名给团队共用。
+
+> **前置条件**：本机或云主机已安装 **Go 1.25+**，并具备外网出口（要访问腾讯云 OpenAPI）。
+
+#### 2.1 按需拉取 `src/postgres` 目录
 
 ```bash
 git clone --depth=1 --filter=blob:none --sparse https://github.com/TencentCloudCommunity/mcp-server.git
 cd mcp-server
 git sparse-checkout set src/postgres
 cd src/postgres
+```
+
+> 后续所有命令都需要在 `src/postgres/` 目录下执行。
+
+#### 2.2 准备配置
+
+```bash
 cp .env.example .env
 ```
 
@@ -174,19 +264,13 @@ MCP_STREAMABLE_HTTP_STATELESS=true
 READ_ONLY=true
 ```
 
-启动服务：
+#### 2.3 启动服务
 
 ```bash
 ./scripts/run_server.sh
 ```
 
-可访问地址：
-
-- 健康检查：`http://127.0.0.1:9000/healthz`
-- 就绪检查：`http://127.0.0.1:9000/readyz`
-- MCP 端点：`http://127.0.0.1:9000/mcp`
-
-MCP 客户端配置：
+#### 2.4 MCP 客户端配置
 
 ```json
 {
@@ -205,19 +289,30 @@ MCP 客户端配置：
 
 > 建议放在 HTTPS / 反向代理之后；公网暴露前务必加 IP 白名单 / 零信任访问控制。
 
-### 方式三：本地 stdio
+---
+
+### 方式三：本地 stdio（推荐本地客户端）
 
 适合 Cursor、Claude Desktop、WorkBuddy 等本地 MCP 客户端的命令直连模式。
+
+> **前置条件**：本机已安装 **Go 1.25+**，并具备外网出口（要访问腾讯云 OpenAPI）。
+
+#### 3.1 按需拉取 `src/postgres` 目录
 
 ```bash
 git clone --depth=1 --filter=blob:none --sparse https://github.com/TencentCloudCommunity/mcp-server.git
 cd mcp-server
 git sparse-checkout set src/postgres
 cd src/postgres
-cp .env.example .env
 ```
 
-最小推荐配置：
+> 后续所有命令都需要在 `src/postgres/` 目录下执行。
+
+#### 3.2 准备配置
+
+```bash
+cp .env.example .env
+```
 
 ```env
 MCP_TRANSPORT=stdio
@@ -229,13 +324,13 @@ MCP_REQUEST_SECRET_KEY=您的SecretKey
 READ_ONLY=true
 ```
 
-启动：
+#### 3.3 启动
 
 ```bash
 ./scripts/run_stdio.sh
 ```
 
-MCP 客户端配置：
+#### 3.4 MCP 客户端配置
 
 ```json
 {
@@ -257,21 +352,25 @@ MCP 客户端配置：
 >
 > `stdio` 模式仅适合本地可信环境，不适合作为远程共享服务暴露。
 
-### 方式四：npx 一键拉起
+---
 
-> 前置条件：本机已安装 **Node.js 18+**（含 `npx`）。无需克隆 Go 仓库，npm 包会按平台自动从 GitHub Release 下载预编译二进制。
+### 方式四：npx 一键拉起（最简本地体验）
+
+> **前置条件**：本机已安装 **Node.js 18+**（含 `npx`）。无需克隆 Go 仓库，npm 包会按平台自动从 GitHub Release 下载预编译二进制。
+>
+> 检查是否已安装：
 >
 > ```bash
 > node -v   # 期望 v18.x 或更高
 > ```
 
-直接启动：
+#### 4.1 命令行直接启动
 
 ```bash
 npx -y postgres-mcp-server@latest
 ```
 
-MCP 客户端配置：
+#### 4.2 MCP 客户端配置
 
 ```json
 {
@@ -289,81 +388,11 @@ MCP 客户端配置：
 }
 ```
 
-可选：用 `npx` 拉起自建 `sse`：
-
-```bash
-npx -y postgres-mcp-server@latest --transport sse --env-file .env
-```
-
-说明：
-
-- `npx` 启动器会按平台下载 GitHub Release 里的预编译 Go 二进制
-- 默认 `transport` 是 `stdio`；也兼容 `TRANSPORT -> MCP_TRANSPORT`、`PORT -> MCP_SERVER_PORT`
-- 腾讯云凭证仍可直接使用 `TENCENTCLOUD_SECRET_ID` / `TENCENTCLOUD_SECRET_KEY`
-- 如需本地调试或跳过下载，可设置 `POSTGRES_MCP_BINARY_PATH=/path/to/postgres-server`
-- 发布预编译资产可执行：`./scripts/build_npx_release.sh`
+> `npx` 启动器会按平台从 GitHub Release 下载预编译 Go 二进制，首次运行需要联网。
 
 ---
 
-## 四、源码安装（可选）
-
-如果您不想依赖脚本，也可以直接编译并按 transport 启动。
-
-```bash
-go build -o ./.bin/postgres-server .
-```
-
-- **stdio**：`MCP_TRANSPORT=stdio ./.bin/postgres-server`
-- **streamable-http**：`MCP_TRANSPORT=streamable-http ./.bin/postgres-server`
-- **sse**：`MCP_TRANSPORT=sse ./.bin/postgres-server`
-
-常用端点：
-
-- **streamable-http**：`/mcp`
-- **SSE**：`/sse`
-- **SSE message**：`/message`
-
----
-
-## 五、本仓库自带客户端如何连当前服务
-
-### `cmd/mcp_smoke`
-
-支持 `streamable-http` / `sse` / `stdio`：
-
-```bash
-SMOKE_TRANSPORT=streamable-http ./scripts/run_mcp_smoke.sh
-SMOKE_TRANSPORT=sse ./scripts/run_mcp_smoke.sh
-SMOKE_TRANSPORT=stdio ./scripts/run_mcp_smoke.sh
-```
-
-### `cmd/verify`
-
-支持 `streamable-http` / `sse` / `stdio`：
-
-```bash
-VERIFY_TRANSPORT=streamable-http VERIFY_INSTANCE_ID=postgres-xxxxxxxx ./scripts/run_verify.sh
-VERIFY_TRANSPORT=sse VERIFY_INSTANCE_ID=postgres-xxxxxxxx ./scripts/run_verify.sh
-VERIFY_TRANSPORT=stdio VERIFY_INSTANCE_ID=postgres-xxxxxxxx ./scripts/run_verify.sh
-```
-
-`cmd/mcp_smoke`、`cmd/verify`、`cmd/write_test` 已自动支持从环境变量读取凭证：
-
-```bash
-export MCP_REQUEST_SECRET_ID=您的SecretId
-export MCP_REQUEST_SECRET_KEY=您的SecretKey
-```
-
-也兼容直接复用：
-
-```bash
-export MCP_SECRET_ID=您的SecretId
-export MCP_SECRET_KEY=您的SecretKey
-```
-
----
-
-## 六、密钥获取教程
+## 三、密钥获取教程
 
 ### 获取 SecretId / SecretKey
 
@@ -372,6 +401,13 @@ export MCP_SECRET_KEY=您的SecretKey
 3. 在 **API 密钥** 标签页新建或查看已有的 **SecretId** 和 **SecretKey**。
 
 > **生成地址**：<https://console.cloud.tencent.com/cam/capi>
+
+⚠️ **安全建议**
+
+- **不要把 `SecretId / SecretKey` 写进 URL 或 query 参数**，只通过 Header 或环境变量传递；
+- **不要把密钥放进 SCF 服务端环境变量**，应使用 per-request 凭证模式；
+- **建议使用最小权限的 CAM 子账号**，避免长期复用主账号密钥；
+- **不要在日志、trace、错误回显中输出凭据明文**。
 
 ### 推荐权限范围
 
@@ -385,9 +421,11 @@ export MCP_SECRET_KEY=您的SecretKey
 
 ---
 
-## 七、地域映射
+## 四、地域映射
 
 调用本 MCP 工具时，`region` 参数必须传 **地域代码**（如 `ap-guangzhou`），而不是中文地域名。
+
+示例：广州地域
 
 | 中文名 | 地域代码 |
 |---|---|
@@ -402,49 +440,28 @@ export MCP_SECRET_KEY=您的SecretKey
 
 > 完整地域列表见 [地域与可用区映射文档](https://cloud.tencent.com/document/product/1596/77930)。如果您不知道实例在哪个地域，可以用只读工具 `DescribeDBInstances` 不传 `region`，或先调用 `DescribeRegions` 查询。
 
----
 
-## 八、API 使用参考
+## 五、API 使用参考
 
-[云数据库 PostgreSQL API 总览](https://cloud.tencent.com/document/product/409/16761)
 
----
 
-## 九、安全建议
+ 云数据库 PostgreSQL API 总览  <https://cloud.tencent.com/document/product/409/16761> 
 
-- **生产环境必须放在 HTTPS / 反向代理之后**，不要裸跑 HTTP 到公网
-- **不要把 `SecretId / SecretKey` 放进 URL 或 query 参数**，只通过 Header 或 env 传递
-- **禁止在日志、trace、错误回显中输出凭据明文**
-- **建议使用最小权限的 CAM 子账号**，避免长期复用主账号密钥
-- **保持 `READ_ONLY=true` 起步**，确认流程后再按需开放写操作
-- **对外暴露前务必加 IP 白名单、VPN 或零信任访问控制**
-- **SCF / API 网关等无状态环境只推荐 `streamable-http`** + `MCP_STREAMABLE_HTTP_STATELESS=true`
-- **不要把 `SecretId / SecretKey` 放进 SCF 服务端环境变量**，应使用 per-request 凭证模式
 
-### Scope 与地域
 
-```env
-MCP_REQUEST_CREDENTIAL_SCOPES=pg.read,pg.write
-MCP_REQUEST_ALLOWED_REGIONS=ap-guangzhou
-```
+## 六、安全建议
 
-- `pg.read`：允许只读工具
-- `pg.write`：允许写类工具（仍受 `Guard` 和 `confirm=true` 约束）
-- `MCP_REQUEST_ALLOWED_REGIONS` 留空表示不额外做地域限制
+- **生产环境必须放在 HTTPS / 反向代理之后**，不要裸跑 HTTP 到公网；
+- **不要把 `SecretId / SecretKey` 放进 URL 或 query 参数**，全部走 Header 或 env；
+- **禁止在日志、trace、错误回显中输出凭据明文**；
+- **建议使用最小权限的 CAM 子账号**，避免长期复用主账号密钥；
+- **保持 `READ_ONLY=true` 起步**，确认流程后再按需开放写操作；
+- **对外暴露前务必加 IP 白名单、VPN 或零信任访问控制**；
+- **SCF / API 网关等无状态环境只推荐 `streamable-http`** + `MCP_STREAMABLE_HTTP_STATELESS=true`。
 
----
 
-## 十、相关文档
 
-- 综合部署指南：[`DEPLOY.md`](./DEPLOY.md)
-- SCF Web 函数部署：[`SCF_DEPLOY.md`](./SCF_DEPLOY.md)
-- 本地 stdio 启动：[`scripts/run_stdio.sh`](./scripts/run_stdio.sh)
-- 通用服务启动：[`scripts/run_server.sh`](./scripts/run_server.sh)
-- WorkBuddy 使用问题记录：[`WORKBUDDY_USAGE_NOTES.md`](./WORKBUDDY_USAGE_NOTES.md)
-- npx 发布脚本：[`scripts/build_npx_release.sh`](./scripts/build_npx_release.sh)
-
----
-
-## 十一、许可证
+## 七、许可证
 
 本项目基于 **Apache-2.0** 协议开源。
+
