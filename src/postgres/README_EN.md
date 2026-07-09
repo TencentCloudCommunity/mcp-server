@@ -399,14 +399,7 @@ No matter which deployment method you choose, requests use the **per-request cre
 
 ---
 
-## 5. npm Publishing Notes (Maintainers)
 
-- **npm package name**: `@tencentcloud/postgres-mcp-server`
-- **CLI command name**: keep using `postgres-mcp-server`
-- **First public publish**: run `npm publish --access public`
-- **Current default config**: `package.json` already sets `publishConfig.access=public`, so regular follow-up releases can use `npm publish`
-
----
 
 ## 6. Related Documents
 
