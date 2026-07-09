@@ -5,7 +5,7 @@
 > 支持 `stdio` / `streamable-http` / `sse` 三种 transport 部署到本地主机、远程主机或腾讯云 SCF，并通过 **per-request 凭证模式** 避免在服务端长期保存用户的 `SecretId` / `SecretKey`。
 
 **产品链接**：[云数据库 TencentDB for PostgreSQL](https://cloud.tencent.com/product/postgres)  
-**英文版**：[`README_EN.md`](./README_EN.md)
+**English**：[`README_EN.md`](./README_EN.md)
 
 ---
 
