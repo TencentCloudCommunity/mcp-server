@@ -17,12 +17,13 @@ const DEFAULT_REPOSITORY = 'TencentCloudCommunity/mcp-server';
 const DEFAULT_RELEASE_TAG = `postgres-mcp-server-v${VERSION}`;
 const CHECKSUM_FILE = 'checksums.txt';
 const DEFAULT_CACHE_DIR = path.join(os.homedir(), '.cache', PACKAGE_NAME, VERSION, `${platformName()}-${archName()}`);
+const PACKAGE_TARBALL_NAME = `${PACKAGE_NAME.replace(/^@/, '').replace(/\//g, '-')}-${VERSION}.tgz`;
 
 const HELP_TEXT = `${PACKAGE_NAME} v${VERSION}\n\n` +
   '用法:\n' +
-  '  npx -y postgres-mcp-server@latest\n' +
-  '  npx -y postgres-mcp-server@latest --transport sse --env-file .env\n' +
-  '  npx -y ./postgres-mcp-server-1.0.3.tgz --release-repository <owner/repo>\n\n' +
+  '  npx -y @tencentcloud/postgres-mcp-server@latest\n' +
+  '  npx -y @tencentcloud/postgres-mcp-server@latest --transport sse --env-file .env\n' +
+  `  npx -y ./${PACKAGE_TARBALL_NAME} --release-repository <owner/repo>\n\n` +
   '参数:\n' +
   '  --transport <stdio|streamable-http|sse>  覆盖 MCP_TRANSPORT，默认 stdio\n' +
   '  --env-file <path>                        启动前按 key=value 语义加载 .env\n' +
