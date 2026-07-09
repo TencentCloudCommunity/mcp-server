@@ -399,14 +399,7 @@ READ_ONLY=true
 
 ---
 
-## 5. npm 发布说明（维护者）
 
-- **npm 包名**：`@tencentcloud/postgres-mcp-server`
-- **CLI 命令名**：继续保留 `postgres-mcp-server`
-- **首次公开发布**：执行 `npm publish --access public`
-- **当前默认配置**：`package.json` 已设置 `publishConfig.access=public`，后续常规发布可直接执行 `npm publish`
-
----
 
 ## 6. 相关文档链接
 
