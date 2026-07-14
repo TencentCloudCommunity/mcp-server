@@ -1,0 +1,12 @@
+{
+  "name": "postgres-skills-packaging",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "clean": "node -e \"require('fs').rmSync('./dist',{recursive:true,force:true});require('fs').mkdirSync('./dist',{recursive:true})\"",
+    "verify": "node ./scripts/verify-skill.mjs",
+    "package:single": "node ./scripts/package-skill.mjs",
+    "package": "node ./scripts/package-all.mjs",
+    "release": "npm run clean && npm run verify && npm run package"
+  }
+}
