@@ -7,6 +7,16 @@
 **产品链接**：[云数据库 TencentDB for PostgreSQL](https://cloud.tencent.com/product/postgres)  
 **英文版**：[`README_EN.md`](./README_EN.md)
 
+## 仓库内容说明
+
+本仓库当前同时包含 **`MCP Server`** 与 **`Skill`** 两类 PostgreSQL 配套能力，它们面向的使用方式不同，但共享同一领域能力边界与安全约束。
+
+- **`MCP Server`**：位于当前 `src/postgres` 目录主体，负责把 PostgreSQL OpenAPI 封装为标准 MCP 工具，适合接入 Cursor、Claude Desktop、WorkBuddy 等 MCP 客户端。
+- **`Skill`**：位于 [`skills/`](./skills/) 目录，负责提供面向巡检、慢 SQL 诊断、运维排障等任务型场景的技能包与配套文档，更适合直接面向最终用户或工作流入口使用。
+- **二者关系**：`MCP` 偏工具接入层，`Skill` 偏任务工作流层；二者不是互相替代，而是在同一仓库中并行维护、能力对齐。
+
+如果您想接入标准 MCP 客户端，请继续阅读下文的 MCP 部署与配置说明；如果您想查看 PostgreSQL Skill 的技能包、打包方式和使用指南，请参考 [`skills/README.md`](./skills/README.md) 与 [`skills/USAGE_GUIDE.md`](./skills/USAGE_GUIDE.md)。
+
 ---
 
 ## 1. 部署前准备
