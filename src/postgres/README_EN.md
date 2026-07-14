@@ -7,6 +7,16 @@
 **Product Link**: [TencentDB for PostgreSQL](https://cloud.tencent.com/product/postgres)  
 **中文版本**: [`README.md`](./README.md)
 
+## Repository Contents
+
+This repository currently contains both **`MCP Server`** and **`Skill`** deliverables for PostgreSQL. They target different usage patterns, but share the same domain boundaries, OpenAPI alignment baseline, and security constraints.
+
+- **`MCP Server`**: Lives in the main `src/postgres` module and packages TencentDB for PostgreSQL OpenAPI capabilities as standard MCP tools, suitable for Cursor, Claude Desktop, WorkBuddy, and other MCP-compatible clients.
+- **`Skill`**: Lives in [`skills/`](./skills/) and provides task-oriented skill packages plus supporting documents for inspection, slow SQL diagnosis, and operations troubleshooting workflows.
+- **Relationship**: `MCP` focuses on the tool integration layer, while `Skill` focuses on the workflow layer. They are maintained side by side in the same repository rather than replacing each other.
+
+If you want to connect a standard MCP client, continue with the MCP deployment and configuration guide below. If you want the PostgreSQL skill package overview, see [`skills/README_EN.md`](./skills/README_EN.md).
+
 ---
 
 ## 1. Before You Deploy
