@@ -38,7 +38,7 @@
 - **凭证获取地址**：<https://console.cloud.tencent.com/cam/capi>
 - 请妥善保存您的 `SecretId` 和 `SecretKey`，用于后续调用 OpenAPI
 - 使用本 MCP Server 提供的工具时，需要传入地域代码，请提前确认实例所在地域
-- 地域参考文档：<https://cloud.tencent.com/document/product/1596/77930>
+- 地域参考文档：<https://cloud.tencent.com/document/product/409/113656>
 
 ### 1.3 前置资源
 
