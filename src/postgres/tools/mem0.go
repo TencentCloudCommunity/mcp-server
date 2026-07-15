@@ -64,15 +64,11 @@ func callMem0API(client *postgres.Client, action string, args map[string]interfa
 	// 需提取内层 Response 对象以与其他工具的返回格式对齐。
 	raw := resp.GetBody()
 	var wrapper struct {
-		Response map[string]interface{} `json:"Response"`
+		Response json.RawMessage `json:"Response"`
 	}
-	if err := json.Unmarshal(raw, &wrapper); err != nil || wrapper.Response == nil {
+	if err := json.Unmarshal(raw, &wrapper); err != nil || len(wrapper.Response) == 0 || string(wrapper.Response) == "null" {
 		// 解包失败时回退返回原始内容
 		return string(raw), nil
 	}
-	inner, err := json.Marshal(wrapper.Response)
-	if err != nil {
-		return string(raw), nil
-	}
-	return string(inner), nil
+	return string(wrapper.Response), nil
 }
