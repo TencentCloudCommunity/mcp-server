@@ -15,6 +15,7 @@ var features = map[string]bool{
 	"monitoring": true,  // 监控/日志
 	"network":    true,  // 网络+安全组
 	"readonly":   true,  // 只读实例
+	"mem0":       true,  // Mem0 AI服务
 	"lifecycle":  false, // 高危生命周期操作（默认关）
 }
 

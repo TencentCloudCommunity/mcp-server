@@ -4,3 +4,4 @@
 coverage.out
 scripts/*.log
 scripts/observe_state/
+bin/

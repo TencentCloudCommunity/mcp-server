@@ -27,8 +27,8 @@ type alignmentCase struct {
 
 func ValidateAllOpenAPIArgumentAlignment() ([]AlignmentResult, error) {
 	cases := openAPIAlignmentCases()
-	if len(cases) != 48 {
-		return nil, fmt.Errorf("expected 48 tool alignment cases, got %d", len(cases))
+	if len(cases) != 51 {
+		return nil, fmt.Errorf("expected 51 tool alignment cases, got %d", len(cases))
 	}
 
 	seen := make(map[string]struct{}, len(cases))
@@ -218,6 +218,17 @@ func openAPIAlignmentCases() []alignmentCase {
 
 		{Name: "DescribeDBInstanceSSLConfig", GuardLevel: security.LevelNone, Args: map[string]interface{}{"DBInstanceId": "postgres-test"}, Validate: func(args map[string]interface{}) error {
 			return parseRequest(args, postgres.NewDescribeDBInstanceSSLConfigRequest())
+		}},
+
+		// Mem0 AI 服务（3个，走 CommonRequest，不做 SDK 参数校验）
+		{Name: "OpenMem0Service", GuardLevel: security.LevelFee, Args: map[string]interface{}{"DBInstanceId": "postgres-test", "AgenticBaseId": "agenticbase-test", "LLMModel": "auto", "EmbeddingApiKey": "sk-test"}, Validate: func(args map[string]interface{}) error {
+			return nil // CommonRequest 不走 SDK FromJsonString
+		}},
+		{Name: "CloseMem0Service", GuardLevel: security.LevelBusiness, Args: map[string]interface{}{"DBInstanceId": "postgres-test"}, Validate: func(args map[string]interface{}) error {
+			return nil
+		}},
+		{Name: "DescribeMem0Service", GuardLevel: security.LevelNone, Args: map[string]interface{}{"DBInstanceId": "postgres-test"}, Validate: func(args map[string]interface{}) error {
+			return nil
 		}},
 	}
 }
