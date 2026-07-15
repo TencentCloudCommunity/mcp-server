@@ -127,6 +127,10 @@ func main() {
 	}
 	tools.RegisterSSLTools(mcpsvr, credentialProvider, guard)
 	toolCount += 1
+	if config.IsEnabled("mem0") {
+		tools.RegisterMem0Tools(mcpsvr, credentialProvider, guard)
+		toolCount += 3
+	}
 	log.Printf("Total tools registered: %d", toolCount)
 
 	if !supportsHTTP {
