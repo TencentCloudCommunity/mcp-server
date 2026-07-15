@@ -12,9 +12,9 @@
 - **高风险动作需明确确认**：涉及审计类、业务类、费用类或 critical 级变更动作时，必须先说明影响面并获得明确确认。
 - **面向发布的分发方式**：用户应从 GitHub Release 或 COS 安装打包好的 zip 资源，而不是直接使用源码目录。
 
-## 用户傻瓜式配置（推荐）
+## 用户配置
 
-对最终用户来说，**推荐只准备 3 个环境变量**，就可以直接使用这些 PostgreSQL skill：
+**推荐只准备 3 个环境变量**，就可以直接使用这些 PostgreSQL skill：
 
 ```bash
 export TENCENTCLOUD_SECRET_ID="你的 SecretId"
