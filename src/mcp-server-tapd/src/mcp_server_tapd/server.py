@@ -6,6 +6,7 @@ import markdown
 from mcp.server.fastmcp import FastMCP
 from mcp_server_tapd.tapd import TAPDClient
 from mcp_server_tapd.app_config import AppConfig
+from mcp_server_tapd.attachments import prepare_attachments, finalize_attachments, upload_files
 
 config = AppConfig()
 if config.mode == "http" or config.mode == "sse" or config.mode == "streamable-http":
@@ -721,7 +722,11 @@ def get_story_or_task_count(workspace_id: int, options: dict = None) -> str:
 
 @mcp.tool()
 def update_story_or_task(workspace_id: int, options: dict = None) -> str:
-    """更新 TAPD 需求或任务，任务的状态只有三个，open: 未开始，progressing: 进行中，done: 已完成，如果是流转需求的状态，需要调用工具先获取状态信息get_workflows_all_transitions
+    """
+    options.attachments: [{"path": "/local/path or media://inbound/...", "filename": "original.eml"}].
+    图片自动内嵌描述；ZIP/EML/PDF/Office 等非图片作为附件上传，不解压、不解析邮件。
+    必须检查返回 data 内 attachment_results 和 warnings，不能把建票成功当成附件成功。
+    更新 TAPD 需求或任务，任务的状态只有三个，open: 未开始，progressing: 进行中，done: 已完成，如果是流转需求的状态，需要调用工具先获取状态信息get_workflows_all_transitions
     TAPD API 文档：https://open.tapd.cn/document/api-doc/API%E6%96%87%E6%A1%A3/api_reference/story/update_story.html
     Args:
         workspace_id: 项目ID（必填）
@@ -779,6 +784,7 @@ def update_story_or_task(workspace_id: int, options: dict = None) -> str:
         options['entity_type'] = 'stories'
     if options:
         new_story.update(options)
+    pending_attachments = prepare_attachments(new_story, _resolve_media_ref)
     warnings: list[str] = []
     pending_videos = _render_rich_description(
         new_story, supports_local_video=True, warnings=warnings
@@ -787,6 +793,7 @@ def update_story_or_task(workspace_id: int, options: dict = None) -> str:
     created_story = _finalize_local_videos(
         "story", workspace_id, created_story, new_story, pending_videos, warnings
     )
+    created_story = finalize_attachments(client, workspace_id, "story", created_story, pending_attachments, warnings)
     config = AppConfig()
     if config.tapd_base_url is None:
         tapd_base_url = os.getenv("TAPD_BASE_URL")
@@ -803,7 +810,11 @@ def update_story_or_task(workspace_id: int, options: dict = None) -> str:
 
 @mcp.tool()
 def create_story_or_task(workspace_id: int, name: str, options: dict = None) -> dict:
-    """创建 TAPD 需求或任务
+    """
+    options.attachments: [{"path": "/local/path or media://inbound/...", "filename": "original.eml"}].
+    图片自动内嵌描述；ZIP/EML/PDF/Office 等非图片作为附件上传，不解压、不解析邮件。
+    必须检查返回 data 内 attachment_results 和 warnings，不能把建票成功当成附件成功。
+    创建 TAPD 需求或任务
     Args:
         workspace_id: 项目ID（必填）
         name: 需求或任务的标题（必填）
@@ -932,6 +943,7 @@ def create_story_or_task(workspace_id: int, name: str, options: dict = None) -> 
     if options:
         data.update(options)
     
+    pending_attachments = prepare_attachments(data, _resolve_media_ref)
     warnings: list[str] = []
     pending_videos = _render_rich_description(data, supports_local_video=True, warnings=warnings)
 
@@ -939,6 +951,7 @@ def create_story_or_task(workspace_id: int, name: str, options: dict = None) -> 
     created_story = _finalize_local_videos(
         "story", workspace_id, created_story, data, pending_videos, warnings
     )
+    created_story = finalize_attachments(client, workspace_id, "story", created_story, pending_attachments, warnings)
     config = AppConfig()
     if config.tapd_base_url is None:
         tapd_base_url = os.getenv("TAPD_BASE_URL")
@@ -1062,7 +1075,11 @@ def get_bug_count(workspace_id: int, options: dict = None) -> str:
 
 @mcp.tool()
 def update_bug(workspace_id: int, options: dict = None) -> dict:
-    """更新 TAPD 缺陷
+    """
+    options.attachments: [{"path": "/local/path or media://inbound/...", "filename": "original.eml"}].
+    图片自动内嵌描述；ZIP/EML/PDF/Office 等非图片作为附件上传，不解压、不解析邮件。
+    必须检查返回 data 内 attachment_results 和 warnings，不能把建票成功当成附件成功。
+    更新 TAPD 缺陷
     TAPD API 文档：https://open.tapd.cn/document/api-doc/API%E6%96%87%E6%A1%A3/api_reference/bug/update_bug.html
     Args:
         workspace_id: 项目ID（必填）
@@ -1097,6 +1114,7 @@ def update_bug(workspace_id: int, options: dict = None) -> dict:
     if options:
         new_bug.update(options)
 
+    pending_attachments = prepare_attachments(new_bug, _resolve_media_ref)
     warnings: list[str] = []
     pending_videos = _render_rich_description(
         new_bug, supports_local_video=True, warnings=warnings
@@ -1108,6 +1126,7 @@ def update_bug(workspace_id: int, options: dict = None) -> dict:
     created_bug = _finalize_local_videos(
         "bug", workspace_id, created_bug, new_bug, pending_videos, warnings
     )
+    created_bug = finalize_attachments(client, workspace_id, "bug", created_bug, pending_attachments, warnings)
     config = AppConfig()
     if config.tapd_base_url is None:
         tapd_base_url = os.getenv("TAPD_BASE_URL")
@@ -1121,7 +1140,11 @@ def update_bug(workspace_id: int, options: dict = None) -> dict:
 
 @mcp.tool()
 def create_bug(workspace_id: int, title: str, options: dict = None) -> dict:
-    """创建 TAPD 缺陷
+    """
+    options.attachments: [{"path": "/local/path or media://inbound/...", "filename": "original.eml"}].
+    图片自动内嵌描述；ZIP/EML/PDF/Office 等非图片作为附件上传，不解压、不解析邮件。
+    必须检查返回 data 内 attachment_results 和 warnings，不能把建票成功当成附件成功。
+    创建 TAPD 缺陷
     TAPD API 文档：https://open.tapd.cn/document/api-doc/API%E6%96%87%E6%A1%A3/api_reference/bug/add_bug.html
     Args:
         workspace_id: 项目ID（必填）
@@ -1177,6 +1200,7 @@ def create_bug(workspace_id: int, title: str, options: dict = None) -> dict:
     if options:
         new_bug.update(options)
     
+    pending_attachments = prepare_attachments(new_bug, _resolve_media_ref)
     warnings: list[str] = []
     pending_videos = _render_rich_description(
         new_bug, supports_local_video=True, warnings=warnings
@@ -1186,6 +1210,7 @@ def create_bug(workspace_id: int, title: str, options: dict = None) -> dict:
         new_bug['reporter'] = user_nick
     ret = client.create_or_update_bug(new_bug)
     ret = _finalize_local_videos("bug", workspace_id, ret, new_bug, pending_videos, warnings)
+    ret = finalize_attachments(client, workspace_id, "bug", ret, pending_attachments, warnings)
     config = AppConfig()
     if config.tapd_base_url is None:
         tapd_base_url = os.getenv("TAPD_BASE_URL")
@@ -2134,6 +2159,25 @@ def upload_image(workspace_id: int, image_path: str) -> str:
 
     ret = client.upload_image(workspace_id, image_path)
     return json.dumps(ret, indent=2, ensure_ascii=False)
+
+
+@mcp.tool()
+def attach_files_to_ticket(workspace_id: int, entry_id: str, entity_type: str, attachments: list[dict]) -> dict:
+    """给已有需求/缺陷补普通附件。entity_type 为 story 或 bug。
+    attachments=[{"path":"本地路径或 media://inbound/...","filename":"原始文件名.zip"}]。
+    用微信文件索引中的 localPath 和原始文件名，不要把 UUID 名称当原始名称。
+    只附文件，不解压 ZIP 或解析 EML。图片请通过 update_story_or_task/update_bug 的 image_urls 内嵌描述。
+    返回每个附件的状态/ID；部分失败时只处理失败项，不重新建票或重传成功项。
+    """
+    if entity_type not in {"story", "bug"} or not str(entry_id).isdigit():
+        raise ValueError("需要有效的 entry_id 和 story/bug 类型")
+    data = {"attachments": attachments}
+    files = prepare_attachments(data, _resolve_media_ref)
+    if data.get("image_urls"):
+        raise ValueError("图片应通过 update_story_or_task/update_bug 的 image_urls 内嵌；本次未上传")
+    results = upload_files(client, workspace_id, entity_type, entry_id, files)
+    return {"workspace_id": workspace_id, "entry_id": entry_id, "attachment_results": results,
+            "ok": all(r["status"] == "uploaded" for r in results)}
 
 
 def start_mcp_server():

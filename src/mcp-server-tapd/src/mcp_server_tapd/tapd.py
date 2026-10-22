@@ -106,7 +106,7 @@ class TAPDClient:
         return response.json()
 
     def upload_attachment(self, workspace_id: Any, file_path: str,
-                          attach_type: str, entry_id: Any) -> Dict:
+                          attach_type: str, entry_id: Any, filename: Optional[str] = None) -> Dict:
         """
         上传本地文件为工作项附件（图片以外的东西都走这里，视频尤其）
 
@@ -140,7 +140,7 @@ class TAPDClient:
                     "type": attach_type,
                     "entry_id": entry_id,
                 },
-                files={"file": (os.path.basename(file_path), fh)},
+                files={"file": (filename or os.path.basename(file_path), fh)},
                 timeout=300,  # 视频比图片大得多，5MB 的超时不够用
             )
         response.raise_for_status()
@@ -620,5 +620,3 @@ class TAPDClient:
         response = self._make_request("GET", "users/info")
         nick = response.get("data", {}).get("nick") if response.get("data") else None
         return nick
-    
-   
