@@ -6,7 +6,7 @@ import markdown
 from mcp.server.fastmcp import FastMCP
 from mcp_server_tapd.tapd import TAPDClient
 from mcp_server_tapd.app_config import AppConfig
-from mcp_server_tapd.attachments import prepare_attachments, finalize_attachments, upload_files
+from mcp_server_tapd.attachments import prepare_attachments, finalize_attachments, upload_files, VIDEO_EXTENSIONS
 
 config = AppConfig()
 if config.mode == "http" or config.mode == "sse" or config.mode == "streamable-http":
@@ -113,7 +113,7 @@ def _human_size(num_bytes: int) -> str:
     return f"{mb:.1f}MB" if mb >= 1 else f"{num_bytes / 1024:.0f}KB"
 
 
-_UPLOADABLE_VIDEO_EXT = {".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv"}
+_UPLOADABLE_VIDEO_EXT = VIDEO_EXTENSIONS
 _MAX_ATTACHMENT_BYTES = 150 * 1024 * 1024  # TAPD upload_attachment 接口硬限制
 
 # 挂载点。文档没枚举 type 的取值，实测（2026-09-09，真实空间）**上传接口只认
@@ -346,38 +346,11 @@ def _render_rich_description(data: dict, field_name: str = "description",
 
 def _finalize_local_videos(entity: str, workspace_id, created: dict, payload: dict,
                            pending_videos: list[str], warnings: list[str]) -> dict:
-    """建票之后把本地视频传上去、把 <video> 追加进描述、回写。
-
-    分三步是接口决定的，不是选择：upload_attachment 要求 entry_id，而 entry_id
-    只有票建出来才有。所以顺序只能是「建票 → 传视频 → 回填描述」。
-    """
-    if not pending_videos:
-        return created
-
-    key = "Bug" if entity == "bug" else "Story"
-    entry_id = ((created.get("data") or {}).get(key) or {}).get("id")
-    if not entry_id:
-        # 票已经建了，这里同样不能抛——降级成警告，让调用方看见视频没贴上去。
-        warnings.append(f"创建返回里没有 {key}.id，视频未附到票上")
-        return created
-
-    video_html = _attach_local_videos(workspace_id, entity, entry_id, pending_videos, warnings)
-    if not video_html:
-        return created
-    description = payload.get("description") or ""
-    updated = {
-        "workspace_id": workspace_id,
-        "id": entry_id,
-        "description": f"{description}\n{video_html}" if description else video_html,
-    }
-    try:
-        if entity == "bug":
-            client.create_or_update_bug(updated)
-        else:
-            client.create_or_update_story(updated)
-    except Exception as exc:  # noqa: BLE001 - 票已存在
-        warnings.append(f"视频已上传但回填描述失败（{type(exc).__name__}: {exc}）")
-    return created
+    """Legacy video inputs use the same upload/player path as attachments display=auto."""
+    files = [{"path": p, "filename": os.path.basename(p), "display": "auto"}
+             for p in pending_videos]
+    return finalize_attachments(client, workspace_id, entity, created, files, warnings,
+                                render_video=_render_tapd_video_html)
 
 
 def _filter_fields(data_list, fields_param=None):
@@ -724,7 +697,8 @@ def get_story_or_task_count(workspace_id: int, options: dict = None) -> str:
 def update_story_or_task(workspace_id: int, options: dict = None) -> str:
     """
     options.attachments: [{"path": "/local/path or media://inbound/...", "filename": "original.eml"}].
-    图片自动内嵌描述；ZIP/EML/PDF/Office 等非图片作为附件上传，不解压、不解析邮件。
+    attachments 默认 display="auto"：图片内嵌、视频附件加正文播放器、其他文件仅附件；display="attachment" 强制仅附件。
+    不解压 ZIP，不解析邮件。视频上传与 preview_status 分别检查，预览失败不能重传已成功附件。
     必须检查返回 data 内 attachment_results 和 warnings，不能把建票成功当成附件成功。
     更新 TAPD 需求或任务，任务的状态只有三个，open: 未开始，progressing: 进行中，done: 已完成，如果是流转需求的状态，需要调用工具先获取状态信息get_workflows_all_transitions
     TAPD API 文档：https://open.tapd.cn/document/api-doc/API%E6%96%87%E6%A1%A3/api_reference/story/update_story.html
@@ -793,7 +767,7 @@ def update_story_or_task(workspace_id: int, options: dict = None) -> str:
     created_story = _finalize_local_videos(
         "story", workspace_id, created_story, new_story, pending_videos, warnings
     )
-    created_story = finalize_attachments(client, workspace_id, "story", created_story, pending_attachments, warnings)
+    created_story = finalize_attachments(client, workspace_id, "story", created_story, pending_attachments, warnings, render_video=_render_tapd_video_html)
     config = AppConfig()
     if config.tapd_base_url is None:
         tapd_base_url = os.getenv("TAPD_BASE_URL")
@@ -812,7 +786,8 @@ def update_story_or_task(workspace_id: int, options: dict = None) -> str:
 def create_story_or_task(workspace_id: int, name: str, options: dict = None) -> dict:
     """
     options.attachments: [{"path": "/local/path or media://inbound/...", "filename": "original.eml"}].
-    图片自动内嵌描述；ZIP/EML/PDF/Office 等非图片作为附件上传，不解压、不解析邮件。
+    attachments 默认 display="auto"：图片内嵌、视频附件加正文播放器、其他文件仅附件；display="attachment" 强制仅附件。
+    不解压 ZIP，不解析邮件。视频上传与 preview_status 分别检查，预览失败不能重传已成功附件。
     必须检查返回 data 内 attachment_results 和 warnings，不能把建票成功当成附件成功。
     创建 TAPD 需求或任务
     Args:
@@ -951,7 +926,7 @@ def create_story_or_task(workspace_id: int, name: str, options: dict = None) -> 
     created_story = _finalize_local_videos(
         "story", workspace_id, created_story, data, pending_videos, warnings
     )
-    created_story = finalize_attachments(client, workspace_id, "story", created_story, pending_attachments, warnings)
+    created_story = finalize_attachments(client, workspace_id, "story", created_story, pending_attachments, warnings, render_video=_render_tapd_video_html)
     config = AppConfig()
     if config.tapd_base_url is None:
         tapd_base_url = os.getenv("TAPD_BASE_URL")
@@ -1077,7 +1052,8 @@ def get_bug_count(workspace_id: int, options: dict = None) -> str:
 def update_bug(workspace_id: int, options: dict = None) -> dict:
     """
     options.attachments: [{"path": "/local/path or media://inbound/...", "filename": "original.eml"}].
-    图片自动内嵌描述；ZIP/EML/PDF/Office 等非图片作为附件上传，不解压、不解析邮件。
+    attachments 默认 display="auto"：图片内嵌、视频附件加正文播放器、其他文件仅附件；display="attachment" 强制仅附件。
+    不解压 ZIP，不解析邮件。视频上传与 preview_status 分别检查，预览失败不能重传已成功附件。
     必须检查返回 data 内 attachment_results 和 warnings，不能把建票成功当成附件成功。
     更新 TAPD 缺陷
     TAPD API 文档：https://open.tapd.cn/document/api-doc/API%E6%96%87%E6%A1%A3/api_reference/bug/update_bug.html
@@ -1126,7 +1102,7 @@ def update_bug(workspace_id: int, options: dict = None) -> dict:
     created_bug = _finalize_local_videos(
         "bug", workspace_id, created_bug, new_bug, pending_videos, warnings
     )
-    created_bug = finalize_attachments(client, workspace_id, "bug", created_bug, pending_attachments, warnings)
+    created_bug = finalize_attachments(client, workspace_id, "bug", created_bug, pending_attachments, warnings, render_video=_render_tapd_video_html)
     config = AppConfig()
     if config.tapd_base_url is None:
         tapd_base_url = os.getenv("TAPD_BASE_URL")
@@ -1142,7 +1118,8 @@ def update_bug(workspace_id: int, options: dict = None) -> dict:
 def create_bug(workspace_id: int, title: str, options: dict = None) -> dict:
     """
     options.attachments: [{"path": "/local/path or media://inbound/...", "filename": "original.eml"}].
-    图片自动内嵌描述；ZIP/EML/PDF/Office 等非图片作为附件上传，不解压、不解析邮件。
+    attachments 默认 display="auto"：图片内嵌、视频附件加正文播放器、其他文件仅附件；display="attachment" 强制仅附件。
+    不解压 ZIP，不解析邮件。视频上传与 preview_status 分别检查，预览失败不能重传已成功附件。
     必须检查返回 data 内 attachment_results 和 warnings，不能把建票成功当成附件成功。
     创建 TAPD 缺陷
     TAPD API 文档：https://open.tapd.cn/document/api-doc/API%E6%96%87%E6%A1%A3/api_reference/bug/add_bug.html
@@ -1210,7 +1187,7 @@ def create_bug(workspace_id: int, title: str, options: dict = None) -> dict:
         new_bug['reporter'] = user_nick
     ret = client.create_or_update_bug(new_bug)
     ret = _finalize_local_videos("bug", workspace_id, ret, new_bug, pending_videos, warnings)
-    ret = finalize_attachments(client, workspace_id, "bug", ret, pending_attachments, warnings)
+    ret = finalize_attachments(client, workspace_id, "bug", ret, pending_attachments, warnings, render_video=_render_tapd_video_html)
     config = AppConfig()
     if config.tapd_base_url is None:
         tapd_base_url = os.getenv("TAPD_BASE_URL")
@@ -2166,7 +2143,8 @@ def attach_files_to_ticket(workspace_id: int, entry_id: str, entity_type: str, a
     """给已有需求/缺陷补普通附件。entity_type 为 story 或 bug。
     attachments=[{"path":"本地路径或 media://inbound/...","filename":"原始文件名.zip"}]。
     用微信文件索引中的 localPath 和原始文件名，不要把 UUID 名称当原始名称。
-    只附文件，不解压 ZIP 或解析 EML。图片请通过 update_story_or_task/update_bug 的 image_urls 内嵌描述。
+    默认 display="auto"：视频会附加正文播放器，其他文件仅附件；display="attachment" 强制仅附件（图片也可）。
+    不解压 ZIP 或解析 EML。自动内嵌图片请通过 update_story_or_task/update_bug 的 image_urls。
     返回每个附件的状态/ID；部分失败时只处理失败项，不重新建票或重传成功项。
     """
     if entity_type not in {"story", "bug"} or not str(entry_id).isdigit():
@@ -2175,9 +2153,9 @@ def attach_files_to_ticket(workspace_id: int, entry_id: str, entity_type: str, a
     files = prepare_attachments(data, _resolve_media_ref)
     if data.get("image_urls"):
         raise ValueError("图片应通过 update_story_or_task/update_bug 的 image_urls 内嵌；本次未上传")
-    results = upload_files(client, workspace_id, entity_type, entry_id, files)
+    results = upload_files(client, workspace_id, entity_type, entry_id, files, render_video=_render_tapd_video_html)
     return {"workspace_id": workspace_id, "entry_id": entry_id, "attachment_results": results,
-            "ok": all(r["status"] == "uploaded" for r in results)}
+            "ok": all(r["status"] == "uploaded" and r.get("preview_status") != "failed" for r in results)}
 
 
 def start_mcp_server():
