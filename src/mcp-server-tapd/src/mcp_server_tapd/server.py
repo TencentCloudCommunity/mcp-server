@@ -6,6 +6,7 @@ import markdown
 from mcp.server.fastmcp import FastMCP
 from mcp_server_tapd.tapd import TAPDClient
 from mcp_server_tapd.app_config import AppConfig
+from mcp_server_tapd.attachments import prepare_attachments, finalize_attachments, upload_files, VIDEO_EXTENSIONS
 
 config = AppConfig()
 if config.mode == "http" or config.mode == "sse" or config.mode == "streamable-http":
@@ -13,6 +14,40 @@ if config.mode == "http" or config.mode == "sse" or config.mode == "streamable-h
 else:
     mcp = FastMCP("mcp-tapd")
 client = TAPDClient()
+
+# OpenClaw 把入站文件落到 <媒体目录>/inbound/<id>，但给模型看的引用是
+# `media://inbound/<id>`（core 在消息里追加 "[media attached: media://inbound/…]"）。
+# 模型拿到的就是这个形态，原样传进 image_url 是它唯一能做的事——2026-09-10 那条
+# "补充截图"评论就是这么坏的：media:// 既不是本地路径也不是 http，被原样写进
+# <img src>，TAPD 渲染成灰色占位，而 bot 还回了句"截图也带上了"。
+# 媒体目录与 MCP 同机（stdio 模式的前提，和 _is_local_image_path 的假设一致）。
+_MEDIA_REF_PREFIX = "media://"
+_OPENCLAW_MEDIA_DIR = os.path.expanduser(os.getenv("OPENCLAW_MEDIA_DIR", "~/.openclaw/media"))
+
+
+def _resolve_media_ref(url: str) -> str:
+    """把 `media://<子目录>/<文件>` 还原成本机绝对路径；不是这种引用就原样返回。
+
+    找不到文件直接抛：这是「静默丢图」的源头，宁可评论/票不建，也不要贴一张
+    打不开的图然后告诉用户已经带上了。`..` 一律拒绝，别让一个引用逃出媒体目录。
+    """
+    if not isinstance(url, str) or not url.startswith(_MEDIA_REF_PREFIX):
+        return url
+    rel = url[len(_MEDIA_REF_PREFIX):].strip().lstrip("/")
+    parts = [seg for seg in rel.split("/") if seg]
+    if not parts or any(seg in ("..", ".") for seg in parts):
+        raise ValueError(f"非法的媒体引用：{url}")
+    path = os.path.realpath(os.path.join(_OPENCLAW_MEDIA_DIR, *parts))
+    root = os.path.realpath(_OPENCLAW_MEDIA_DIR)
+    if not (path == root or path.startswith(root + os.sep)):
+        raise ValueError(f"媒体引用越出媒体目录：{url}")
+    if not os.path.isfile(path):
+        raise ValueError(
+            f"媒体引用 {url} 在本机找不到对应文件（查找路径 {path}）。"
+            "可能已被清理，或 MCP 与文件不在同一台机器。"
+        )
+    return path
+
 
 def _normalize_media_items(raw_media) -> list[dict]:
     """Normalize supported media parameters into a single list."""
@@ -64,36 +99,234 @@ def _extract_media_items(data: dict) -> list[dict]:
                         "poster": "",
                     })
 
-    return [item for item in media_items if item.get("url")]
+    return [
+        {**item, "url": _resolve_media_ref(item["url"])}
+        for item in media_items if item.get("url")
+    ]
+
+_UPLOADABLE_IMAGE_EXT = {".png", ".gif", ".jpg", ".jpeg", ".bmp"}
+_MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # TAPD upload_image 接口硬限制
+
+def _human_size(num_bytes: int) -> str:
+    """给人看的大小。报"8388608 字节"没人算得动。"""
+    mb = num_bytes / (1024 * 1024)
+    return f"{mb:.1f}MB" if mb >= 1 else f"{num_bytes / 1024:.0f}KB"
+
+
+_UPLOADABLE_VIDEO_EXT = VIDEO_EXTENSIONS
+_MAX_ATTACHMENT_BYTES = 150 * 1024 * 1024  # TAPD upload_attachment 接口硬限制
+
+# 挂载点。文档没枚举 type 的取值，实测（2026-09-09，真实空间）**上传接口只认
+# 实体名本身**：story / bug 可以，story_description / story_description_attachment /
+# story_attachment / stories / workitem 全部 422 "type is invalid"。
+#
+# 别被 GET /attachments 的返回误导：那里确实存在 bug_description 这种 type，但那是
+# 网页端走另一套内部接口写进去的形态，上传 API 不接受。我第一版就是从那里抄的值，
+# 结果每次都 422，而 422 又被吞掉了（见下面 warnings 的修复），表现成"没报错但也没传上"。
+_VIDEO_ATTACH_TYPE = {
+    "bug": "bug",
+    "story": "story",
+}
+
+
+def _is_local_video_path(url: str) -> bool:
+    """本地视频路径，需要上传；已经是 URL 的一律放行。"""
+    if not url or "://" in url or url.startswith("//"):
+        return False
+    if os.path.splitext(url)[1].lower() not in _UPLOADABLE_VIDEO_EXT:
+        return False
+    return os.path.isfile(url)
+
+
+def _split_local_videos(media_items: list[dict]) -> tuple[list[dict], list[str]]:
+    """把待上传的本地视频挑出来。
+
+    图片能在建票前传（upload_image 不需要 entry_id），视频不行：附件接口必须
+    指定挂在哪个工作项上，所以只能建票之后再传，描述也就得回填。这个函数就是
+    那道分水岭。
+    """
+    remaining, local_videos = [], []
+    for item in media_items:
+        if item.get("type") == "video" and _is_local_video_path(item.get("url", "")):
+            local_videos.append(item["url"])
+        else:
+            remaining.append(item)
+    return remaining, local_videos
+
+
+def _render_tapd_video_html(workspace_id, attachment_id, attach_type: str) -> str:
+    """TAPD 自己内嵌视频用的写法，从网页端建的票里逆出来的。
+
+    src 只依赖 attachment_id 和 type，不是带签名的临时下载链接，所以不会过期。
+    poster 是 TAPD 自动生成的首帧，我们不用管。preload=none 让票打开时不拉视频。
+    """
+    config = AppConfig()
+    base = (config.tapd_base_url or os.getenv("TAPD_BASE_URL") or "https://www.tapd.cn").rstrip("/")
+    src = f"{base}/{workspace_id}/attachments/preview_attachments/{attachment_id}/{attach_type}"
+    poster = f"{base}/{workspace_id}/attachments/preview_video_poster/{attachment_id}"
+    return (
+        f'<p><video controls="controls" preload="none" '
+        f'video_original_width="300" video_original_height="150" '
+        f'src="{html.escape(src, quote=True)}" poster="{html.escape(poster, quote=True)}">'
+        f'<source src="{html.escape(src, quote=True)}"></video></p>'
+    )
+
+
+def _attach_local_videos(workspace_id, entity: str, entry_id, video_paths: list[str],
+                         warnings: list[str]) -> str:
+    """建票之后把本地视频传上去，返回要追加进描述的 HTML。
+
+    **这里一律不抛。**票此刻已经存在了，抛出去的结果是"票建了、调用方收到失败"
+    ——最糟的组合，调用方多半会重试，于是多出一张重复的票。所以每一个失败都
+    降级成警告：票留着，描述里少这一个视频，警告如实回给调用方去转达。
+    """
+    attach_type = _VIDEO_ATTACH_TYPE[entity]
+    blocks = []
+    for path in video_paths:
+        name = os.path.basename(path)
+        try:
+            size = os.path.getsize(path)
+            if size > _MAX_ATTACHMENT_BYTES:
+                warnings.append(
+                    f"视频 {name} 为 {_human_size(size)}，超过 TAPD 附件 "
+                    f"{_human_size(_MAX_ATTACHMENT_BYTES)} 上限，未附到票上"
+                )
+                continue
+
+            ret = client.upload_attachment(workspace_id, path, attach_type, entry_id)
+            if ret.get("status") != 1:
+                warnings.append(f"视频 {name} 上传失败（{ret.get('info')}），未附到票上")
+                continue
+
+            attachment_id = ((ret.get("data") or {}).get("Attachment") or {}).get("id")
+            if not attachment_id:
+                warnings.append(f"视频 {name} 上传后没拿到附件 id，未附到票上")
+                continue
+
+            blocks.append(_render_tapd_video_html(workspace_id, attachment_id, attach_type))
+        except Exception as exc:  # noqa: BLE001 - 票已存在，任何异常都不能往上抛
+            warnings.append(f"视频 {name} 处理失败（{type(exc).__name__}: {exc}），未附到票上")
+    return "\n".join(blocks)
+
+def _is_local_image_path(url: str) -> bool:
+    """判断是不是一个待上传的本地图片路径（而非已经可用的 URL）。
+
+    要求 MCP server 与文件所在机器是同一台；streamable-http 模式跨机部署时不成立。
+    """
+    if not url or "://" in url or url.startswith("//"):
+        return False
+    if url.startswith("/tfl/"):
+        return False  # 已经在 TAPD 图床上了
+    if os.path.splitext(url)[1].lower() not in _UPLOADABLE_IMAGE_EXT:
+        return False
+    return os.path.isfile(url)
+
+def _upload_local_images(media_items: list[dict], workspace_id,
+                         warnings: list[str] | None = None) -> list[dict]:
+    """把本地图片路径上传到 TAPD 图床，替换成图床返回的 image_src。
+
+    非本地路径、非图片一律原样放行。
+
+    两类失败分开处理：
+    - **超限**是事先就知道、重试也没用的确定性情况 —— 跳过这一张、记一条警告，
+      票照建。为一张超大图把整张票挡下来，比缺一张图更糟。
+    - **上传失败**（网络、接口报错）是意外，仍然直接抛：这一步在建票之前，
+      抛出去不会留下孤票，而"悄悄少一张图"的票没人会发现。
+    """
+    if not workspace_id:
+        return media_items
+
+    resolved = []
+    for item in media_items:
+        url = item.get("url", "")
+        if item.get("type") != "image" or not _is_local_image_path(url):
+            resolved.append(item)
+            continue
+
+        size = os.path.getsize(url)
+        if size > _MAX_UPLOAD_BYTES:
+            msg = (
+                f"图片 {os.path.basename(url)} 为 {_human_size(size)}，"
+                f"超过 TAPD 图床 {_human_size(_MAX_UPLOAD_BYTES)} 上限，未附到票上"
+            )
+            if warnings is None:
+                raise ValueError(msg)
+            warnings.append(msg)
+            continue
+
+        ret = client.upload_image(workspace_id, url)
+        if ret.get("status") != 1:
+            raise ValueError(f"上传图片 {url} 失败：{ret.get('info')}")
+
+        payload = ret.get("data") or {}
+        image_src = payload.get("image_src")
+        if not image_src:
+            raise ValueError(f"上传图片 {url} 后返回中没有 image_src：{ret}")
+
+        resolved.append({**item, "url": image_src})
+
+    return resolved
+
+# 嵌入宽度上限。`max-width: 100%` 只防溢出、不限尺寸——它的意思是「最大到容器
+# 那么宽」，而 TAPD 的描述区很宽、手机截图本身又是 1000+ px，结果就是铺满整屏。
+# 上限写在外层容器而不是 <img> 上：这样窄容器下 <p> 会自己缩，图片跟着缩，
+# 不需要 CSS min() 也能两头都对。
+MEDIA_MAX_WIDTH_PX = 680
+
+# 高度上限。只限宽是不够的：手机截图是竖版的，1260x2844 限宽到 680 之后仍然是
+# 一面 1536px 高的墙，票读起来照样被它占满——第一版就漏了这一维。
+#
+# 内嵌图在这里的角色是「指路的缩略图」，不是阅读界面：TAPD 自己给图挂了
+# 点击放大（img.class 含 gallery，cursor: zoom-in），细节始终一点即看。
+# 所以宁可缩到看不清字，也要让票本身能当文档读。
+MEDIA_MAX_HEIGHT_PX = 480
+
+
+# 宽高都给上限、宽高都留 auto：浏览器取更严的那个约束，等比缩放，不裁剪。
+# 横版整页截图因此受宽度约束，竖版手机截图受高度约束，各自用合适的规则。
+_MEDIA_FIT = (
+    f"max-width: 100%; max-height: {MEDIA_MAX_HEIGHT_PX}px; width: auto; height: auto;"
+)
+
 
 def _render_media_html(media_items: list[dict]) -> str:
     blocks = []
+    wrap = f'<p style="max-width: {MEDIA_MAX_WIDTH_PX}px;">'
     for item in media_items:
         url = html.escape(item["url"], quote=True)
         if item["type"] == "image":
             alt = html.escape(item.get("alt", ""), quote=True)
             blocks.append(
-                f'<p><img src="{url}" alt="{alt}" style="max-width: 100%; height: auto;" /></p>'
+                f'{wrap}<img src="{url}" alt="{alt}" style="{_MEDIA_FIT}" /></p>'
             )
             continue
 
         poster = item.get("poster", "")
         poster_attr = f' poster="{html.escape(poster, quote=True)}"' if poster else ""
         blocks.append(
-            f'<p><video controls src="{url}"{poster_attr} style="max-width: 100%;"></video></p>'
+            f'{wrap}<video controls src="{url}"{poster_attr} style="{_MEDIA_FIT}"></video></p>'
         )
     return "\n".join(blocks)
 
-def _render_rich_description(data: dict, field_name: str = "description") -> None:
+def _render_rich_description(data: dict, field_name: str = "description",
+                             supports_local_video: bool = False,
+                             warnings: list[str] | None = None) -> list[str]:
+    """渲染描述，并把需要建票后才能传的本地视频路径回给调用方。
+
+    `supports_local_video=False` 的调用点（比如评论）拿到本地视频会直接抛错，
+    而不是把它悄悄丢掉。静默丢弃最坏：调用方会以为录屏已经贴上去了。
+    """
     content = data.get(field_name, "")
     if content is None:
         content = ""
     elif not isinstance(content, str):
         content = str(content)
 
-    media_html = _render_media_html(_extract_media_items(data))
-    if field_name not in data and not media_html:
-        return
+    media_items, pending_videos = _split_local_videos(_extract_media_items(data))
+    media_items = _upload_local_images(media_items, data.get("workspace_id"), warnings)
+    media_html = _render_media_html(media_items)
+    if field_name not in data and not media_html and not pending_videos:
+        return []
 
     html_content = markdown.markdown(content, extensions=['extra', 'codehilite', 'toc'])
     if '<p>' in html_content or '<h' in html_content or '<ul>' in html_content or '<ol>' in html_content:
@@ -103,6 +336,22 @@ def _render_rich_description(data: dict, field_name: str = "description") -> Non
         content = f"{content}\n{media_html}" if content else media_html
 
     data[field_name] = content
+    if pending_videos and not supports_local_video:
+        raise ValueError(
+            "这个接口不支持内嵌本地视频（附件接口需要 entry_id，只有建票/改票路径才拿得到）："
+            + "、".join(pending_videos)
+            + "。请改用 create_bug / update_bug / create_story_or_task，或先自行上传后传公网直链。"
+        )
+    return pending_videos
+
+def _finalize_local_videos(entity: str, workspace_id, created: dict, payload: dict,
+                           pending_videos: list[str], warnings: list[str]) -> dict:
+    """Legacy video inputs use the same upload/player path as attachments display=auto."""
+    files = [{"path": p, "filename": os.path.basename(p), "display": "auto"}
+             for p in pending_videos]
+    return finalize_attachments(client, workspace_id, entity, created, files, warnings,
+                                render_video=_render_tapd_video_html)
+
 
 def _filter_fields(data_list, fields_param=None):
     """
@@ -446,7 +695,12 @@ def get_story_or_task_count(workspace_id: int, options: dict = None) -> str:
 
 @mcp.tool()
 def update_story_or_task(workspace_id: int, options: dict = None) -> str:
-    """更新 TAPD 需求或任务，任务的状态只有三个，open: 未开始，progressing: 进行中，done: 已完成，如果是流转需求的状态，需要调用工具先获取状态信息get_workflows_all_transitions
+    """
+    options.attachments: [{"path": "/local/path or media://inbound/...", "filename": "original.eml"}].
+    attachments 默认 display="auto"：图片内嵌、视频附件加正文播放器、其他文件仅附件；display="attachment" 强制仅附件。
+    不解压 ZIP，不解析邮件。视频上传与 preview_status 分别检查，预览失败不能重传已成功附件。
+    必须检查返回 data 内 attachment_results 和 warnings，不能把建票成功当成附件成功。
+    更新 TAPD 需求或任务，任务的状态只有三个，open: 未开始，progressing: 进行中，done: 已完成，如果是流转需求的状态，需要调用工具先获取状态信息get_workflows_all_transitions
     TAPD API 文档：https://open.tapd.cn/document/api-doc/API%E6%96%87%E6%A1%A3/api_reference/story/update_story.html
     Args:
         workspace_id: 项目ID（必填）
@@ -459,10 +713,10 @@ def update_story_or_task(workspace_id: int, options: dict = None) -> str:
             - priority_label: 优先级，需要先检查get_stories_fields_info是否配置了候选值，如果不存在则使用默认的候选值 High => 高、Middle => 中、Low => 低、Nice To Have => 无关紧要，不使用 priority 字段
             - description: 描述
             - media: 富媒体列表，支持 [{"type": "image"|"video", "url": "...", "alt": "...", "poster": "..."}]
-            - image_url: 单个图片直链，会以内嵌图片形式写入描述
-            - image_urls: 多个图片直链，会以内嵌图片形式写入描述
-            - video_url: 单个视频直链，会以内嵌视频形式写入描述
-            - video_urls: 多个视频直链，会以内嵌视频形式写入描述
+            - image_url: 单张图片，会以内嵌图片形式写入描述。可以是公网直链，也可以是本机图片的绝对路径（如 /root/.openclaw/media/inbound/xxx.png），本地路径会自动上传到 TAPD 图床后再内嵌，无需自己找图床；消息里给出的 media://inbound/xxx 引用也可以直接传
+            - image_urls: 多张图片，规则同 image_url，传数组
+            - video_url: 单个视频，可以是公网直链，也可以是本机视频的绝对路径（如 /root/.openclaw/media/inbound/xxx.mp4）。本地路径会在票创建后自动上传为 TAPD 附件并内嵌进描述，可在票里直接播放，不需要任何外部图床或直链。单文件限 150MB
+            - video_urls: 多个视频，规则同 video_url，传数组
             - owner: 处理人
             - cc: 抄送人
             - developer: 开发人员
@@ -504,8 +758,16 @@ def update_story_or_task(workspace_id: int, options: dict = None) -> str:
         options['entity_type'] = 'stories'
     if options:
         new_story.update(options)
-    _render_rich_description(new_story)
+    pending_attachments = prepare_attachments(new_story, _resolve_media_ref)
+    warnings: list[str] = []
+    pending_videos = _render_rich_description(
+        new_story, supports_local_video=True, warnings=warnings
+    )
     created_story = client.create_or_update_story(new_story)
+    created_story = _finalize_local_videos(
+        "story", workspace_id, created_story, new_story, pending_videos, warnings
+    )
+    created_story = finalize_attachments(client, workspace_id, "story", created_story, pending_attachments, warnings, render_video=_render_tapd_video_html)
     config = AppConfig()
     if config.tapd_base_url is None:
         tapd_base_url = os.getenv("TAPD_BASE_URL")
@@ -516,12 +778,18 @@ def update_story_or_task(workspace_id: int, options: dict = None) -> str:
     url_template = get_story_or_task_url_template(workspace_id, entity_type, tapd_base_url)
     return json.dumps({
         "url_template": url_template,
-        "data": json.dumps(created_story, indent=2, ensure_ascii=False)
+        "data": json.dumps(created_story, indent=2, ensure_ascii=False),
+        **({"warnings": warnings} if warnings else {}),
     }, ensure_ascii=False, indent=2)
 
 @mcp.tool()
 def create_story_or_task(workspace_id: int, name: str, options: dict = None) -> dict:
-    """创建 TAPD 需求或任务
+    """
+    options.attachments: [{"path": "/local/path or media://inbound/...", "filename": "original.eml"}].
+    attachments 默认 display="auto"：图片内嵌、视频附件加正文播放器、其他文件仅附件；display="attachment" 强制仅附件。
+    不解压 ZIP，不解析邮件。视频上传与 preview_status 分别检查，预览失败不能重传已成功附件。
+    必须检查返回 data 内 attachment_results 和 warnings，不能把建票成功当成附件成功。
+    创建 TAPD 需求或任务
     Args:
         workspace_id: 项目ID（必填）
         name: 需求或任务的标题（必填）
@@ -530,10 +798,10 @@ def create_story_or_task(workspace_id: int, name: str, options: dict = None) -> 
             - priority_label: 优先级，需要先检查get_stories_fields_info是否配置了候选值，如果不存在则使用默认的候选值 High => 高、Middle => 中、Low => 低、Nice To Have => 无关紧要，不使用 priority 字段
             - description: 描述
             - media: 富媒体列表，支持 [{"type": "image"|"video", "url": "...", "alt": "...", "poster": "..."}]
-            - image_url: 单个图片直链，会以内嵌图片形式写入描述
-            - image_urls: 多个图片直链，会以内嵌图片形式写入描述
-            - video_url: 单个视频直链，会以内嵌视频形式写入描述
-            - video_urls: 多个视频直链，会以内嵌视频形式写入描述
+            - image_url: 单张图片，会以内嵌图片形式写入描述。可以是公网直链，也可以是本机图片的绝对路径（如 /root/.openclaw/media/inbound/xxx.png），本地路径会自动上传到 TAPD 图床后再内嵌，无需自己找图床；消息里给出的 media://inbound/xxx 引用也可以直接传
+            - image_urls: 多张图片，规则同 image_url，传数组
+            - video_url: 单个视频，可以是公网直链，也可以是本机视频的绝对路径（如 /root/.openclaw/media/inbound/xxx.mp4）。本地路径会在票创建后自动上传为 TAPD 附件并内嵌进描述，可在票里直接播放，不需要任何外部图床或直链。单文件限 150MB
+            - video_urls: 多个视频，规则同 video_url，传数组
             - owner: 处理人
             - cc: 抄送人
             - developer: 开发人员
@@ -650,9 +918,15 @@ def create_story_or_task(workspace_id: int, name: str, options: dict = None) -> 
     if options:
         data.update(options)
     
-    _render_rich_description(data)
+    pending_attachments = prepare_attachments(data, _resolve_media_ref)
+    warnings: list[str] = []
+    pending_videos = _render_rich_description(data, supports_local_video=True, warnings=warnings)
 
     created_story = client.create_or_update_story(data)
+    created_story = _finalize_local_videos(
+        "story", workspace_id, created_story, data, pending_videos, warnings
+    )
+    created_story = finalize_attachments(client, workspace_id, "story", created_story, pending_attachments, warnings, render_video=_render_tapd_video_html)
     config = AppConfig()
     if config.tapd_base_url is None:
         tapd_base_url = os.getenv("TAPD_BASE_URL")
@@ -669,6 +943,8 @@ def create_story_or_task(workspace_id: int, name: str, options: dict = None) -> 
     return {
         "url_template": url_template,
         "data": json.dumps(created_story, indent=2, ensure_ascii=False),
+        # 漏掉这一行的代价：附件上传失败被完全吞掉，调用方看到一切正常。
+        **({"warnings": warnings} if warnings else {}),
     }
 
 @mcp.tool()
@@ -774,7 +1050,12 @@ def get_bug_count(workspace_id: int, options: dict = None) -> str:
 
 @mcp.tool()
 def update_bug(workspace_id: int, options: dict = None) -> dict:
-    """更新 TAPD 缺陷
+    """
+    options.attachments: [{"path": "/local/path or media://inbound/...", "filename": "original.eml"}].
+    attachments 默认 display="auto"：图片内嵌、视频附件加正文播放器、其他文件仅附件；display="attachment" 强制仅附件。
+    不解压 ZIP，不解析邮件。视频上传与 preview_status 分别检查，预览失败不能重传已成功附件。
+    必须检查返回 data 内 attachment_results 和 warnings，不能把建票成功当成附件成功。
+    更新 TAPD 缺陷
     TAPD API 文档：https://open.tapd.cn/document/api-doc/API%E6%96%87%E6%A1%A3/api_reference/bug/update_bug.html
     Args:
         workspace_id: 项目ID（必填）
@@ -783,10 +1064,10 @@ def update_bug(workspace_id: int, options: dict = None) -> dict:
             - title: 标题
             - description: 描述
             - media: 富媒体列表，支持 [{"type": "image"|"video", "url": "...", "alt": "...", "poster": "..."}]
-            - image_url: 单个图片直链，会以内嵌图片形式写入描述
-            - image_urls: 多个图片直链，会以内嵌图片形式写入描述
-            - video_url: 单个视频直链，会以内嵌视频形式写入描述
-            - video_urls: 多个视频直链，会以内嵌视频形式写入描述
+            - image_url: 单张图片，会以内嵌图片形式写入描述。可以是公网直链，也可以是本机图片的绝对路径（如 /root/.openclaw/media/inbound/xxx.png），本地路径会自动上传到 TAPD 图床后再内嵌，无需自己找图床；消息里给出的 media://inbound/xxx 引用也可以直接传
+            - image_urls: 多张图片，规则同 image_url，传数组
+            - video_url: 单个视频，可以是公网直链，也可以是本机视频的绝对路径（如 /root/.openclaw/media/inbound/xxx.mp4）。本地路径会在票创建后自动上传为 TAPD 附件并内嵌进描述，可在票里直接播放，不需要任何外部图床或直链。单文件限 150MB
+            - video_urls: 多个视频，规则同 video_url，传数组
             - v_status: 状态别名(支持传入中文状态名称)，默认用这个字段
             - status: 状态，原名
             - priority_label: 优先级，需要先检查get_entity_custom_fields是否配置了自定义候选值，没有的话用默认的候选值 urgent=> 紧急、high=> 高、medium=> 中、low=> 低、insignificant=> 无关紧要，不使用 priority
@@ -809,11 +1090,19 @@ def update_bug(workspace_id: int, options: dict = None) -> dict:
     if options:
         new_bug.update(options)
 
-    _render_rich_description(new_bug)
+    pending_attachments = prepare_attachments(new_bug, _resolve_media_ref)
+    warnings: list[str] = []
+    pending_videos = _render_rich_description(
+        new_bug, supports_local_video=True, warnings=warnings
+    )
     user_nick = os.getenv("CURRENT_USER_NICK")
     if 'lastmodify' not in new_bug and user_nick:
         new_bug['lastmodify'] = user_nick
     created_bug = client.create_or_update_bug(new_bug)
+    created_bug = _finalize_local_videos(
+        "bug", workspace_id, created_bug, new_bug, pending_videos, warnings
+    )
+    created_bug = finalize_attachments(client, workspace_id, "bug", created_bug, pending_attachments, warnings, render_video=_render_tapd_video_html)
     config = AppConfig()
     if config.tapd_base_url is None:
         tapd_base_url = os.getenv("TAPD_BASE_URL")
@@ -821,12 +1110,18 @@ def update_bug(workspace_id: int, options: dict = None) -> dict:
         tapd_base_url = config.tapd_base_url
     return {
         "base_url": tapd_base_url, # 返回给用户时，链接要可点击
-        "data": json.dumps(created_bug, indent=2, ensure_ascii=False)
+        "data": json.dumps(created_bug, indent=2, ensure_ascii=False),
+        **({"warnings": warnings} if warnings else {}),
     }
 
 @mcp.tool()
 def create_bug(workspace_id: int, title: str, options: dict = None) -> dict:
-    """创建 TAPD 缺陷
+    """
+    options.attachments: [{"path": "/local/path or media://inbound/...", "filename": "original.eml"}].
+    attachments 默认 display="auto"：图片内嵌、视频附件加正文播放器、其他文件仅附件；display="attachment" 强制仅附件。
+    不解压 ZIP，不解析邮件。视频上传与 preview_status 分别检查，预览失败不能重传已成功附件。
+    必须检查返回 data 内 attachment_results 和 warnings，不能把建票成功当成附件成功。
+    创建 TAPD 缺陷
     TAPD API 文档：https://open.tapd.cn/document/api-doc/API%E6%96%87%E6%A1%A3/api_reference/bug/add_bug.html
     Args:
         workspace_id: 项目ID（必填）
@@ -843,10 +1138,10 @@ def create_bug(workspace_id: int, title: str, options: dict = None) -> dict:
             - confirmer: 验证人员
             - description: 描述
             - media: 富媒体列表，支持 [{"type": "image"|"video", "url": "...", "alt": "...", "poster": "..."}]
-            - image_url: 单个图片直链，会以内嵌图片形式写入描述
-            - image_urls: 多个图片直链，会以内嵌图片形式写入描述
-            - video_url: 单个视频直链，会以内嵌视频形式写入描述
-            - video_urls: 多个视频直链，会以内嵌视频形式写入描述
+            - image_url: 单张图片，会以内嵌图片形式写入描述。可以是公网直链，也可以是本机图片的绝对路径（如 /root/.openclaw/media/inbound/xxx.png），本地路径会自动上传到 TAPD 图床后再内嵌，无需自己找图床；消息里给出的 media://inbound/xxx 引用也可以直接传
+            - image_urls: 多张图片，规则同 image_url，传数组
+            - video_url: 单个视频，可以是公网直链，也可以是本机视频的绝对路径（如 /root/.openclaw/media/inbound/xxx.mp4）。本地路径会在票创建后自动上传为 TAPD 附件并内嵌进描述，可在票里直接播放，不需要任何外部图床或直链。单文件限 150MB
+            - video_urls: 多个视频，规则同 video_url，传数组
             - priority_label: 优先级，需要先检查get_entity_custom_fields是否配置了自定义候选值，没有的话用默认的候选值 urgent=> 紧急、high=> 高、medium=> 中、low=> 低、insignificant=> 无关紧要，不使用 priority
             - severity: 严重程度，取值为 fatal => 致命、 serious => 严重、 normal => 一般、 prompt => 提示、advice => 建议
             - module: 模块
@@ -860,8 +1155,10 @@ def create_bug(workspace_id: int, title: str, options: dict = None) -> dict:
             等等...
     Returns:
         {
-            "data": <str>,  # 所有字段数据的 json 格式
-            "url": <str>  #  url，返回给用户时，链接要可点击
+            "data": <str>,      # 所有字段数据的 json 格式
+            "url": <str>,       #  url，返回给用户时，链接要可点击
+            "warnings": [<str>] # 可选。票已建好，但有附件没贴上（超限/上传失败）。
+                                # 有这个字段就如实转达给用户，不要重试建票
         }
     Note: 缺陷链接格式为 {tapd_base_url}/{workspace_id}/bugtrace/bugs/view/{id}
     """
@@ -880,11 +1177,17 @@ def create_bug(workspace_id: int, title: str, options: dict = None) -> dict:
     if options:
         new_bug.update(options)
     
-    _render_rich_description(new_bug)
+    pending_attachments = prepare_attachments(new_bug, _resolve_media_ref)
+    warnings: list[str] = []
+    pending_videos = _render_rich_description(
+        new_bug, supports_local_video=True, warnings=warnings
+    )
     user_nick = os.getenv("CURRENT_USER_NICK")
     if 'reporter' not in new_bug and user_nick:
         new_bug['reporter'] = user_nick
     ret = client.create_or_update_bug(new_bug)
+    ret = _finalize_local_videos("bug", workspace_id, ret, new_bug, pending_videos, warnings)
+    ret = finalize_attachments(client, workspace_id, "bug", ret, pending_attachments, warnings, render_video=_render_tapd_video_html)
     config = AppConfig()
     if config.tapd_base_url is None:
         tapd_base_url = os.getenv("TAPD_BASE_URL")
@@ -893,6 +1196,8 @@ def create_bug(workspace_id: int, title: str, options: dict = None) -> dict:
     return {
         "url": f'{tapd_base_url}/{workspace_id}/bugtrace/bugs/view/{ret["data"]["Bug"]["id"]}', # 返回给用户时，链接要可点击
         "data": json.dumps(ret, indent=2, ensure_ascii=False),
+        # 票建成了但有附件没贴上：如实转达，别让用户以为录屏在票里
+        **({"warnings": warnings} if warnings else {}),
     }
 
 @mcp.tool()
@@ -907,8 +1212,8 @@ def create_comments(workspace_id: int, options: dict = None) -> dict:
             - author: 评论人（必填）
             - description: 内容（必填）
             - media: 富媒体列表，支持 [{"type": "image"|"video", "url": "...", "alt": "...", "poster": "..."}]
-            - image_url: 单个图片直链，会以内嵌图片形式写入评论
-            - image_urls: 多个图片直链，会以内嵌图片形式写入评论
+            - image_url: 单张图片，会以内嵌图片形式写入评论。可以是公网直链，也可以是本机图片的绝对路径（如 /root/.openclaw/media/inbound/xxx.png），本地路径会自动上传到 TAPD 图床后再内嵌，无需自己找图床；消息里给出的 media://inbound/xxx 引用也可以直接传
+            - image_urls: 多张图片，规则同 image_url，传数组
             - video_url: 单个视频直链，会以内嵌视频形式写入评论
             - video_urls: 多个视频直链，会以内嵌视频形式写入评论
             - root_id: 根评论ID
@@ -928,10 +1233,15 @@ def create_comments(workspace_id: int, options: dict = None) -> dict:
     
     if options:
         data.update(options)
-    
-    _render_rich_description(data)
-    created_story = client.create_comments(data)
-    return json.dumps(created_story, indent=2, ensure_ascii=False)
+
+    # warnings 必须回给调用方。之前这里把它丢了，超限/失败的图就"没报错但也没
+    # 传上"，bot 会对用户说"截图也带上了"——最坏的失败方式。
+    warnings: list[str] = []
+    _render_rich_description(data, warnings=warnings)
+    created = client.create_comments(data)
+    if warnings and isinstance(created, dict):
+        created = {**created, "warnings": warnings}
+    return json.dumps(created, indent=2, ensure_ascii=False)
 
 @mcp.tool()
 def update_comments(workspace_id: int, options: dict = None) -> dict:
@@ -1790,6 +2100,62 @@ def send_qiwei_message(msg: str) -> dict:
         "msg": msg,
     }
     return client.send_message(data)
+
+
+@mcp.tool()
+def upload_image(workspace_id: int, image_path: str) -> str:
+    """上传本机图片到 TAPD 图床，返回可直接内嵌到描述/评论里的图片地址。
+
+    多数情况下不需要单独调用本工具：create_bug / create_story_or_task /
+    create_comments 等工具的 image_url、image_urls 参数已经可以直接接收本机图片
+    绝对路径并自动完成上传。只有在需要先拿到地址、自己拼 description 时才用它。
+
+    Args:
+        workspace_id: 项目ID（必填）
+        image_path: 本机图片绝对路径（必填）。限 5MB 以内，
+                    支持 PNG/GIF/JPG/JPEG/BMP，一次一张。
+                    要求本 MCP server 与图片在同一台机器上。
+    Returns:
+        {
+            "image_src": <str>,   # 形如 /tfl/pictures/202608/api_xxx.png
+            "html_code": <str>    # 形如 <img src="/tfl/pictures/..."/>，可直接写入 description
+        }
+    """
+    if not os.path.isfile(image_path):
+        return json.dumps(
+            {"status": 0, "info": f"找不到文件：{image_path}"},
+            indent=2, ensure_ascii=False
+        )
+
+    size = os.path.getsize(image_path)
+    if size > _MAX_UPLOAD_BYTES:
+        return json.dumps(
+            {"status": 0, "info": f"图片为 {size} 字节，超过 TAPD 的 5MB 限制，请先压缩"},
+            indent=2, ensure_ascii=False
+        )
+
+    ret = client.upload_image(workspace_id, image_path)
+    return json.dumps(ret, indent=2, ensure_ascii=False)
+
+
+@mcp.tool()
+def attach_files_to_ticket(workspace_id: int, entry_id: str, entity_type: str, attachments: list[dict]) -> dict:
+    """给已有需求/缺陷补普通附件。entity_type 为 story 或 bug。
+    attachments=[{"path":"本地路径或 media://inbound/...","filename":"原始文件名.zip"}]。
+    用微信文件索引中的 localPath 和原始文件名，不要把 UUID 名称当原始名称。
+    默认 display="auto"：视频会附加正文播放器，其他文件仅附件；display="attachment" 强制仅附件（图片也可）。
+    不解压 ZIP 或解析 EML。自动内嵌图片请通过 update_story_or_task/update_bug 的 image_urls。
+    返回每个附件的状态/ID；部分失败时只处理失败项，不重新建票或重传成功项。
+    """
+    if entity_type not in {"story", "bug"} or not str(entry_id).isdigit():
+        raise ValueError("需要有效的 entry_id 和 story/bug 类型")
+    data = {"attachments": attachments}
+    files = prepare_attachments(data, _resolve_media_ref)
+    if data.get("image_urls"):
+        raise ValueError("图片应通过 update_story_or_task/update_bug 的 image_urls 内嵌；本次未上传")
+    results = upload_files(client, workspace_id, entity_type, entry_id, files, render_video=_render_tapd_video_html)
+    return {"workspace_id": workspace_id, "entry_id": entry_id, "attachment_results": results,
+            "ok": all(r["status"] == "uploaded" and r.get("preview_status") != "failed" for r in results)}
 
 
 def start_mcp_server():
